@@ -158,7 +158,7 @@ public class FileServer {
                             try {
                                 output = new ObjectOutputStream(heartbeatSock.getOutputStream());
                                 output.writeObject(fileInfo);
-                                output.close();
+                                //output.close();
                             } catch (IOException e) {
                                 e.printStackTrace();
                                 break;
