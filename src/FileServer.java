@@ -152,6 +152,7 @@ public class FileServer {
                 Thread thread = new Thread(new Runnable() {
                     @Override
                     public void run() {
+                        System.out.println("Enter heartbeat send loop");
                         ObjectOutputStream output = null;
                         while(true) {
                             try {
@@ -168,6 +169,7 @@ public class FileServer {
                                 e.printStackTrace();
                             }
                         }
+                        System.out.println("Exit heartbeat send loop");
                     }
                 });
                 //##############################################################
