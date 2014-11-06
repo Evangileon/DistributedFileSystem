@@ -158,6 +158,8 @@ public class FileServer {
                             try {
                                 output = new ObjectOutputStream(heartbeatSock.getOutputStream());
                                 output.writeObject(fileInfo);
+                                output.flush();
+                                System.out.println("fileInfo flushed");
                                 //output.close();
                             } catch (IOException e) {
                                 e.printStackTrace();

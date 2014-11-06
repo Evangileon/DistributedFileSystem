@@ -221,6 +221,7 @@ public class MetaServer {
                     FileInfo fileInfo = (FileInfo) objectInput.readObject();
 
                     fileInfo.print();
+                    System.out.println("fileInfo printed");
 
                 } catch (IOException e) {
                     e.printStackTrace();
