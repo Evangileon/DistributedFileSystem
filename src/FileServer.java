@@ -69,7 +69,7 @@ public class FileServer {
             XPathFactory xPathFactory = XPathFactory.newInstance();
             XPath xPath = xPathFactory.newXPath();
             //Node thisFileServerNode = getFileServerNodeWithHostname(doc, xPath, hostName);
-
+            // TODO XPath to find proper file server config for this
             Node thisFileServerNode = doc.getElementsByTagName("fileServer").item(0);
             parseXMLToConfigFileServer(thisFileServerNode);
 
@@ -176,6 +176,7 @@ public class FileServer {
     public void launch() {
         fileInfo = new FileInfo(storageDir);
         fileInfo.recoverFileInfoFromDisk();
+        metaServer.resolveAddress();
         resolveAddress();
         heartbeatToMetaServer();
     }
