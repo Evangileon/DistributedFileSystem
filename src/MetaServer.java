@@ -156,7 +156,7 @@ public class MetaServer {
                 thread.start();
             } catch (IOException e) {
                 e.printStackTrace();
-                System.exit(0);
+                //System.exit(0);
             }
         }
     }
@@ -212,6 +212,7 @@ public class MetaServer {
         @Override
         public void run() {
 
+            System.out.println("Enter meta server heartbeat receive loop");
             while (true) {
                 try {
                     InputStream tcpFlow = fileServerSock.getInputStream();
@@ -244,6 +245,7 @@ public class MetaServer {
                     e.printStackTrace();
                 }
             }
+            System.out.println("Exit meta server heartbeat receive loop");
 
             try {
                 fileServerSock.close();
