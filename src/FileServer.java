@@ -36,6 +36,10 @@ public class FileServer {
 
     HashMap<Integer, FileServer> allFileServerList;
 
+    public FileServer() {
+
+    }
+
     /**
      * Parse XML to acquire hostname, ports of process
      *
@@ -172,5 +176,11 @@ public class FileServer {
         fileInfo.recoverFileInfoFromDisk();
         resolveAddress();
         heartbeatToMetaServer();
+    }
+
+    public static void main(String[] args) {
+        FileServer fileServer = new FileServer();
+        fileServer.parseXML("configs.xml");
+        fileServer.launch();
     }
 }
