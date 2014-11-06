@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configs>
+    <metaServer>
+        <hostname>dc01.utdallas.edu</hostname>
+        <receiveHeartbeatPort>50001</receiveHeartbeatPort>
+    </metaServer>
+
+    <fileServers>
+        <fileServer>
+            <id>1</id>
+            <hostname>dc02.utdallas.edu</hostname>
+            <receiveMetaFilePort>50002</receiveMetaFilePort>
+            <storageDir>files</storageDir>
+        </fileServer>
+    </fileServers>
+</configs>

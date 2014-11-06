@@ -9,7 +9,10 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.*;
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.HashMap;
 
 /**
@@ -19,12 +22,17 @@ public class FileServer {
     int id;
     String hostname;
 
-    InetAddress fileServerAddr;
+    InetAddress fileServerAddress;
     int receiveMetaFilePort; // receive from meta server
     int requestFilePort; // request from client
     int fileServerExchangePort; // the port this server opens to other file servers
 
     MetaServer metaServer;
+
+    FileInfo fileInfo;
+    String storageDir;
+
+    Socket heartbeatSock;
 
     HashMap<Integer, FileServer> allFileServerList;
 
@@ -86,6 +94,18 @@ public class FileServer {
         parseXMLToConfigFileServer(serverNode);
     }
 
+    public void resolveAddress() {
+        if (hostname == null) {
+            return;
+        }
+
+        try {
+            fileServerAddress = InetAddress.getByName(hostname);
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void parseXMLToConfigFileServer(Node serverNode) {
 
         NodeList serverConfig = serverNode.getChildNodes();
@@ -108,6 +128,49 @@ public class FileServer {
             if (oneConfig.getNodeName().equals("requestFilePort")) {
                 this.requestFilePort = Integer.parseInt(oneConfig.getTextContent());
             }
+            if (oneConfig.getNodeName().equals("storageDir")) {
+                this.storageDir = oneConfig.getTextContent();
+            }
         }
+    }
+
+    public void heartbeatToMetaServer() {
+        while (true) {
+            try {
+                heartbeatSock = new Socket(metaServer.metaServerAddress, metaServer.receiveHeartbeatPort);
+
+                Thread thread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ObjectOutputStream output = null;
+                        while(true) {
+                            try {
+                                output = new ObjectOutputStream(heartbeatSock.getOutputStream());
+                                output.writeObject(fileInfo);
+                                output.close();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                                return;
+                            }
+                        }
+                    }
+                });
+
+                System.out.println("heartbeat reconnect");
+                thread.join();
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void launch() {
+        fileInfo = new FileInfo(storageDir);
+        fileInfo.recoverFileInfoFromDisk();
+        resolveAddress();
+        heartbeatToMetaServer();
     }
 }

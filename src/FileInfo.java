@@ -17,6 +17,10 @@ public class FileInfo implements Serializable {
 
     HashMap<String, ArrayList<FileChunk>> fileChunks;
 
+    public  FileInfo(String dir) {
+        this.fileDir = dir;
+    }
+
     public void recoverFileInfoFromDisk() {
 
         fileChunks = new HashMap<>();
@@ -55,6 +59,12 @@ public class FileInfo implements Serializable {
 
         for (Map.Entry<String, ArrayList<FileChunk>> pair : fileChunks.entrySet()) {
             Collections.sort(pair.getValue());
+        }
+    }
+
+    public void print() {
+        for (Map.Entry<String, ArrayList<FileChunk>> entry : fileChunks.entrySet()) {
+            System.out.println(entry.getKey()+" : "+ entry.getValue().toString());
         }
     }
 

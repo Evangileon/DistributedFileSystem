@@ -28,6 +28,25 @@ public class MetaServer {
 
     HashMap<Integer, FileServer> allFileServerList;
 
+    public MetaServer() {
+    }
+
+    public MetaServer(Node serverNode) {
+        parseXMLToConfigMetaServer(serverNode);
+    }
+
+    public void resolveAddress() {
+        if (hostname == null) {
+            return;
+        }
+
+        try {
+            metaServerAddress = InetAddress.getByName(hostname);
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+    }
+
     /**
      * Parse XML to acquire hostname, ports of process
      *
@@ -110,17 +129,15 @@ public class MetaServer {
         }
     }
 
-    public MetaServer(Node serverNode) {
-        parseXMLToConfigMetaServer(serverNode);
-    }
 
     /**
      * Wait for heartbeat connection
      */
     public void prepareToReceiveHeartbeat() {
 
-        try {
-            while (true) {
+
+        while (true) {
+            try {
                 Socket fileServerSock = receiveHeartbeatSock.accept();
                 int id = identifyHeartbeatConnection(fileServerSock);
                 if (id < 0) {
@@ -132,15 +149,16 @@ public class MetaServer {
                 Thread thread = new Thread(oneHeartbeatEntity);
                 thread.setDaemon(true);
                 thread.start();
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.exit(0);
             }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
     public int identifyHeartbeatConnection(Socket fileServerSock) {
         for (Map.Entry<Integer, FileServer> pair : allFileServerList.entrySet()) {
-            if (pair.getValue().fileServerAddr.equals(fileServerSock.getInetAddress())) {
+            if (pair.getValue().fileServerAddress.equals(fileServerSock.getInetAddress())) {
                 return pair.getKey();
             }
         }
@@ -150,10 +168,22 @@ public class MetaServer {
 
     /**
      * Notify meta server that file server with id fails
+     *
      * @param id of file server
      */
     public void fileServerFail(int id) {
+        System.out.println("File server fail: " + id);
+    }
 
+    private void resolveAllFileServerAddress() {
+        for (Map.Entry<Integer, FileServer> pair : allFileServerList.entrySet()) {
+            pair.getValue().resolveAddress();
+        }
+    }
+
+    public void launch() {
+        resolveAllFileServerAddress();
+        prepareToReceiveHeartbeat();
     }
 
     class HeartbeatEntity implements Runnable {
@@ -176,51 +206,48 @@ public class MetaServer {
 
         @Override
         public void run() {
-            try {
-//                BufferedReader input = new BufferedReader(new InputStreamReader(fileServerSock.getInputStream()));
-//                String line;
-//                while ((line = input.readLine()) != null) {
-//                    failTimes = 0;
-//
-//                    // filename tab chunk_number tab chunk number new line
-//                    String[] params = line.split("\t");
-//                    if (params.length <= 1) {
-//                        System.out.println(params);
-//                    }
-//
-//                    String fileName = params[0];
-//                    String[] chunkNumbers = new String[params.length - 1];
-//                    System.arraycopy(params, 1, chunkNumbers, 0, params.length - 1);
-//
-//
-//                }
-                InputStream tcpFlow = fileServerSock.getInputStream();
-                ObjectInputStream objectInput = new ObjectInputStream(tcpFlow);
 
-                FileInfo fileInfo = (FileInfo) objectInput.readObject();
+            while (true) {
+                try {
+                    InputStream tcpFlow = fileServerSock.getInputStream();
+                    ObjectInputStream objectInput = new ObjectInputStream(tcpFlow);
 
-            } catch (IOException e) {
-                e.printStackTrace();
-                if (e instanceof  SocketTimeoutException) {
-                    failTimes++;
+                    FileInfo fileInfo = (FileInfo) objectInput.readObject();
+                    tcpFlow.close();
 
-                    if (failTimes >= 3) {
-                        fileServerFail(id);
-                        // exit this heartbeat thread
-                        return;
+                    fileInfo.print();
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    if (e instanceof SocketTimeoutException) {
+                        failTimes++;
+
+                        if (failTimes >= 3) {
+                            fileServerFail(id);
+                            // exit this heartbeat thread
+                            break;
+                        }
+                    } else {
+                        failTimes++;
+
+                        if (failTimes >= 3) {
+                            fileServerFail(id);
+                            // exit this heartbeat thread
+                            break;
+                        }
                     }
-                } else {
-                    failTimes++;
-
-                    if (failTimes >= 3) {
-                        fileServerFail(id);
-                        // exit this heartbeat thread
-                        return;
-                    }
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
                 }
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
             }
+
+            System.out.println("id" + id + " heartbeat exit");
         }
+    }
+
+    public static void main(String[] args) {
+        MetaServer metaServer = new MetaServer();
+        metaServer.parseXML("./configs.xml");
+        metaServer.launch();
     }
 }
