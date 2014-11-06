@@ -218,7 +218,6 @@ public class MetaServer {
                     ObjectInputStream objectInput = new ObjectInputStream(tcpFlow);
 
                     FileInfo fileInfo = (FileInfo) objectInput.readObject();
-                    tcpFlow.close();
 
                     fileInfo.print();
 
