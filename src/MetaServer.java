@@ -245,6 +245,11 @@ public class MetaServer {
                 }
             }
 
+            try {
+                fileServerSock.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             System.out.println("id" + id + " heartbeat exit");
         }
     }

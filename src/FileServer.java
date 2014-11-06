@@ -167,8 +167,14 @@ public class FileServer {
                     }
                 });
 
-                System.out.println("heartbeat reconnect");
+
                 thread.join();
+                System.out.println("heartbeat reconnect");
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
 
             } catch (IOException e) {
                 e.printStackTrace();
