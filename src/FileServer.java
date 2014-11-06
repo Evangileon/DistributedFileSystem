@@ -184,6 +184,11 @@ public class FileServer {
             } catch (IOException e) {
                 //e.printStackTrace();
                 System.out.println("heartbeatToMetaServer loop IOException");
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException e1) {
+                    e1.printStackTrace();
+                }
             } catch (InterruptedException e) {
                 //e.printStackTrace();
                 System.out.println("heartbeatToMetaServer loop InterruptedException");
