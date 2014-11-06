@@ -172,6 +172,8 @@ public class FileServer {
                         System.out.println("Exit heartbeat send loop");
                     }
                 });
+                thread.setDaemon(true);
+                thread.start();
                 //##############################################################
 
 
