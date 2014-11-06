@@ -158,6 +158,11 @@ public class FileServer {
                                 e.printStackTrace();
                                 return;
                             }
+                            try {
+                                Thread.sleep(5000);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
                         }
                     }
                 });
