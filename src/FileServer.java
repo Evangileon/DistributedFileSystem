@@ -79,7 +79,7 @@ public class FileServer {
     public static Node getFileServerNodeWithHostname(Document doc, XPath xPath, String hostname) {
         NodeList nodes = null;
         try {
-            XPathExpression expr = xPath.compile(String.format("fileServers/fileServer[/hostname='%s']", hostname));
+            XPathExpression expr = xPath.compile(String.format("/configs/fileServers/fileServer[/hostname='%s']", hostname));
             nodes = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
 
         } catch (XPathExpressionException e) {
