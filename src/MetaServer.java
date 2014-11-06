@@ -223,7 +223,7 @@ public class MetaServer {
                     fileInfo.print();
 
                 } catch (IOException e) {
-                    e.printStackTrace();
+
                     if (e instanceof SocketTimeoutException) {
                         failTimes++;
 

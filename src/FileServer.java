@@ -158,8 +158,8 @@ public class FileServer {
                                 output.writeObject(fileInfo);
                                 output.close();
                             } catch (IOException e) {
-                                e.printStackTrace();
-                                return;
+                                //e.printStackTrace();
+                                break;
                             }
                             try {
                                 Thread.sleep(5000);
