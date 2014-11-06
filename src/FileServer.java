@@ -6,6 +6,7 @@ import org.xml.sax.SAXException;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -15,22 +16,22 @@ import java.util.HashMap;
  * Created by Jun Yu on 11/5/14.
  */
 public class FileServer {
-
-    String hostname;
     int id;
-    boolean isRealMachine;
+    String hostname;
+
+    InetAddress fileServerAddr;
+    int receiveMetaFilePort; // receive from meta server
+    int requestFilePort; // request from client
+    int fileServerExchangePort; // the port this server opens to other file servers
 
     MetaServer metaServer;
-    InetAddress thisFileServerAddress;
-
-    // the port this server opens to other file servers
-    int fileServerExchangePort;
 
     HashMap<Integer, FileServer> allFileServerList;
 
     /**
      * Parse XML to acquire hostname, ports of process
-     * @param filename
+     *
+     * @param filename xml
      */
     private void parseXML(String filename) {
         allFileServerList = new HashMap<>();
@@ -48,47 +49,65 @@ public class FileServer {
             }
             doc.normalize();
 
-            // System.out.println(doc.getDocumentElement().getNodeName());
-            Node fileServers = doc.getElementsByTagName("FileServers").item(0);
-            // System.out.println(fileServers.item(0).getNodeName());
-            NodeList fileServerList = fileServers.getChildNodes();
-
-            for (int i = 0; i < fileServerList.getLength(); i++) {
-                Node oneMachine = fileServerList.item(i);
-                if (oneMachine.getNodeType() != Node.ELEMENT_NODE) {
-                    continue;
-                }
-
-                NodeList machineConfig = oneMachine.getChildNodes();
-                int id = 0;
-                String hostname = null;
-                int recvPort = 0;
-                int acksPort = 0;
-
-                for (int j = 0; j < machineConfig.getLength(); j++) {
-                    Node oneConfig = machineConfig.item(j);
-                    if(oneConfig.getNodeType() != Node.ELEMENT_NODE) {
-                        continue;
-                    }
-
-                    if (oneConfig.getNodeName().equals("id")) {
-                        id = Integer.parseInt(oneConfig.getTextContent());
-                    }
-                    if (oneConfig.getNodeName().equals("hostname")) {
-                        hostname = oneConfig.getTextContent();
-                    }
-                    if(oneConfig.getNodeName().equals("recvPort")) {
-                        recvPort = Integer.parseInt(oneConfig.getTextContent());
-                    }
-                    if(oneConfig.getNodeName().equals("acksPort")) {
-                        acksPort = Integer.parseInt(oneConfig.getTextContent());
-                    }
-                }
-                this.allFileServerList.put(id, new FileServer());
-            }
+            // config for meta server
+            Node metaServerNode = doc.getElementsByTagName("metaServer").item(0);
+            metaServer = new MetaServer(metaServerNode);
+            // config for this file server
+            String hostName = InetAddress.getLocalHost().getHostName();
+            XPathFactory xPathFactory = XPathFactory.newInstance();
+            XPath xPath = xPathFactory.newXPath();
+            Node thisFileServerNode = getFileServerNodeWithHostname(doc, xPath, hostName);
+            parseXMLToConfigFileServer(thisFileServerNode);
 
         } catch (ParserConfigurationException | SAXException | IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    public static Node getFileServerNodeWithHostname(Document doc, XPath xPath, String hostname) {
+        NodeList nodes = null;
+        try {
+            XPathExpression expr = xPath.compile(String.format("fileServers/fileServer[/hostname='%s']", hostname));
+            nodes = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
+
+        } catch (XPathExpressionException e) {
+            e.printStackTrace();
+        }
+
+        if (nodes == null || nodes.getLength() == 0) {
+            return null;
+        }
+
+        return nodes.item(0);
+    }
+
+    public FileServer(int id, Node serverNode) {
+        this.id = id;
+        parseXMLToConfigFileServer(serverNode);
+    }
+
+    private void parseXMLToConfigFileServer(Node serverNode) {
+
+        NodeList serverConfig = serverNode.getChildNodes();
+
+        for (int j = 0; j < serverConfig.getLength(); j++) {
+            Node oneConfig = serverConfig.item(j);
+            if (oneConfig.getNodeType() != Node.ELEMENT_NODE) {
+                continue;
+            }
+
+            if (oneConfig.getNodeName().equals("id")) {
+                this.id = Integer.valueOf(oneConfig.getTextContent());
+            }
+            if (oneConfig.getNodeName().equals("hostname")) {
+                this.hostname = oneConfig.getTextContent();
+            }
+            if (oneConfig.getNodeName().equals("receiveMetaFilePort")) {
+                this.receiveMetaFilePort = Integer.parseInt(oneConfig.getTextContent());
+            }
+            if (oneConfig.getNodeName().equals("requestFilePort")) {
+                this.requestFilePort = Integer.parseInt(oneConfig.getTextContent());
+            }
         }
     }
 }

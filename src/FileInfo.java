@@ -40,9 +40,9 @@ public class FileInfo implements Serializable {
                 continue;
             }
 
-            int lastDot = fileName.lastIndexOf(".");
-            String realName = fileName.substring(0, lastDot);
-            String chunkID = fileName.substring(lastDot + 1);
+            int lastDash = fileName.length() - 9;
+            String realName = fileName.substring(0, lastDash);
+            String chunkID = fileName.substring(lastDash + 1);
             FileChunk chunk = new FileChunk(realName, Integer.valueOf(chunkID));
 
             ArrayList<FileChunk> oneFile = fileChunks.get(realName);
@@ -56,5 +56,11 @@ public class FileInfo implements Serializable {
         for (Map.Entry<String, ArrayList<FileChunk>> pair : fileChunks.entrySet()) {
             Collections.sort(pair.getValue());
         }
+    }
+
+    public static void main(String[] args) {
+        String str = "000123";
+        int num = Integer.valueOf(str);
+        System.out.println(num);
     }
 }

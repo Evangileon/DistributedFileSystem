@@ -15,9 +15,14 @@ import java.util.Map;
  * Created by evangileon on 11/5/14.
  */
 public class MetaServer {
+
+    String hostname;
+
+    InetAddress metaServerAddress;
     int receiveHeartbeatPort;
+    int clientPort;
+
     ServerSocket receiveHeartbeatSock;
-    InetAddress thisAddress;
 
     int timeoutMillis;
 
@@ -44,48 +49,69 @@ public class MetaServer {
             }
             doc.normalize();
 
-            // System.out.println(doc.getDocumentElement().getNodeName());
-            Node fileServers = doc.getElementsByTagName("FileServers").item(0);
-            // System.out.println(fileServers.item(0).getNodeName());
-            NodeList fileServerList = fileServers.getChildNodes();
-
-            for (int i = 0; i < fileServerList.getLength(); i++) {
-                Node oneMachine = fileServerList.item(i);
-                if (oneMachine.getNodeType() != Node.ELEMENT_NODE) {
-                    continue;
-                }
-
-                NodeList machineConfig = oneMachine.getChildNodes();
-                int id = 0;
-                String hostname = null;
-                int recvPort = 0;
-                int acksPort = 0;
-
-                for (int j = 0; j < machineConfig.getLength(); j++) {
-                    Node oneConfig = machineConfig.item(j);
-                    if (oneConfig.getNodeType() != Node.ELEMENT_NODE) {
-                        continue;
-                    }
-
-                    if (oneConfig.getNodeName().equals("id")) {
-                        id = Integer.parseInt(oneConfig.getTextContent());
-                    }
-                    if (oneConfig.getNodeName().equals("hostname")) {
-                        hostname = oneConfig.getTextContent();
-                    }
-                    if (oneConfig.getNodeName().equals("recvPort")) {
-                        recvPort = Integer.parseInt(oneConfig.getTextContent());
-                    }
-                    if (oneConfig.getNodeName().equals("acksPort")) {
-                        acksPort = Integer.parseInt(oneConfig.getTextContent());
-                    }
-                }
-                this.allFileServerList.put(id, new FileServer());
-            }
+            // config for meta server
+            Node metaServerNode = doc.getElementsByTagName("metaServer").item(0);
+            parseXMLToConfigMetaServer(metaServerNode);
+            // config for file server virtual machine
+            parseXMLToConfigFileServers(doc);
 
         } catch (ParserConfigurationException | SAXException | IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private void parseXMLToConfigFileServers(Document doc) {
+        Node fileServers = doc.getElementsByTagName("fileServers").item(0);
+        NodeList fileServerList = fileServers.getChildNodes();
+
+        for (int i = 0; i < fileServerList.getLength(); i++) {
+            Node oneServer = fileServerList.item(i);
+            if (oneServer.getNodeType() != Node.ELEMENT_NODE) {
+                continue;
+            }
+
+            NodeList serverConfig = oneServer.getChildNodes();
+            int id = 0;
+
+
+            for (int j = 0; j < serverConfig.getLength(); j++) {
+                Node oneConfig = serverConfig.item(j);
+                if (oneConfig.getNodeType() != Node.ELEMENT_NODE) {
+                    continue;
+                }
+
+                if (oneConfig.getNodeName().equals("id")) {
+                    id = Integer.parseInt(oneConfig.getTextContent());
+                }
+
+            }
+            this.allFileServerList.put(id, new FileServer(id, oneServer));
+        }
+    }
+
+    private void parseXMLToConfigMetaServer(Node serverNode) {
+        NodeList serverConfig = serverNode.getChildNodes();
+
+        for (int j = 0; j < serverConfig.getLength(); j++) {
+            Node oneConfig = serverConfig.item(j);
+            if (oneConfig.getNodeType() != Node.ELEMENT_NODE) {
+                continue;
+            }
+
+            if (oneConfig.getNodeName().equals("hostname")) {
+                this.hostname = oneConfig.getTextContent();
+            }
+            if (oneConfig.getNodeName().equals("receiveHeartbeatPort")) {
+                this.receiveHeartbeatPort = Integer.parseInt(oneConfig.getTextContent());
+            }
+            if (oneConfig.getNodeName().equals("clientPort")) {
+                this.clientPort = Integer.parseInt(oneConfig.getTextContent());
+            }
+        }
+    }
+
+    public MetaServer(Node serverNode) {
+        parseXMLToConfigMetaServer(serverNode);
     }
 
     /**
@@ -114,7 +140,7 @@ public class MetaServer {
 
     public int identifyHeartbeatConnection(Socket fileServerSock) {
         for (Map.Entry<Integer, FileServer> pair : allFileServerList.entrySet()) {
-            if (pair.getValue().thisFileServerAddress.equals(fileServerSock.getInetAddress())) {
+            if (pair.getValue().fileServerAddr.equals(fileServerSock.getInetAddress())) {
                 return pair.getKey();
             }
         }

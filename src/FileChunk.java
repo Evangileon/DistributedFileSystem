@@ -1,5 +1,5 @@
 /**
- * Created by evangileon on 11/6/14.
+ * Created by Jun Yu on 11/6/14.
  */
 public class FileChunk implements Comparable<FileChunk> {
     public static final int size = 8192;
@@ -13,7 +13,7 @@ public class FileChunk implements Comparable<FileChunk> {
     }
 
     public String getChunkName() {
-        return realFileName + "." + chunckID;
+        return realFileName + "-" + String.format("%08d", chunckID);
     }
 
     @Override
