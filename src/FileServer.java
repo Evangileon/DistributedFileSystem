@@ -148,6 +148,7 @@ public class FileServer {
             try {
                 heartbeatSock = new Socket(metaServer.metaServerAddress, metaServer.receiveHeartbeatPort);
 
+                //##############################################################
                 Thread thread = new Thread(new Runnable() {
                     @Override
                     public void run() {
@@ -169,6 +170,7 @@ public class FileServer {
                         }
                     }
                 });
+                //##############################################################
 
 
                 thread.join();
@@ -180,9 +182,11 @@ public class FileServer {
                 }
 
             } catch (IOException e) {
-                e.printStackTrace();
+                //e.printStackTrace();
+                System.out.println("heartbeatToMetaServer loop IOException");
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                //e.printStackTrace();
+                System.out.println("heartbeatToMetaServer loop InterruptedException");
             }
         }
     }
