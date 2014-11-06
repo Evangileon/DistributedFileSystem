@@ -134,7 +134,11 @@ public class MetaServer {
      * Wait for heartbeat connection
      */
     public void prepareToReceiveHeartbeat() {
-
+        try {
+            receiveHeartbeatSock = new ServerSocket(receiveHeartbeatPort);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         while (true) {
             try {
