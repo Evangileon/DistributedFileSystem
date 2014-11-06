@@ -68,7 +68,9 @@ public class FileServer {
             String hostName = InetAddress.getLocalHost().getHostName();
             XPathFactory xPathFactory = XPathFactory.newInstance();
             XPath xPath = xPathFactory.newXPath();
-            Node thisFileServerNode = getFileServerNodeWithHostname(doc, xPath, hostName);
+            //Node thisFileServerNode = getFileServerNodeWithHostname(doc, xPath, hostName);
+
+            Node thisFileServerNode = doc.getElementsByTagName("fileServer").item(0);
             parseXMLToConfigFileServer(thisFileServerNode);
 
         } catch (ParserConfigurationException | SAXException | IOException e) {
