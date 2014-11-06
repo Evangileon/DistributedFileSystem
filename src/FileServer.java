@@ -141,6 +141,9 @@ public class FileServer {
     }
 
     public void heartbeatToMetaServer() {
+        System.out.println("Meta server heartbeat: " + metaServer.hostname);
+        System.out.println("Meta server heartbeat: " + metaServer.metaServerAddress.toString() + ":" + metaServer.receiveHeartbeatPort);
+
         while (true) {
             try {
                 heartbeatSock = new Socket(metaServer.metaServerAddress, metaServer.receiveHeartbeatPort);

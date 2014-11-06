@@ -129,11 +129,11 @@ public class MetaServer {
         }
     }
 
-
     /**
      * Wait for heartbeat connection
      */
     public void prepareToReceiveHeartbeat() {
+        System.out.println("Meta server receive heartbeat port: " + receiveHeartbeatPort);
         try {
             receiveHeartbeatSock = new ServerSocket(receiveHeartbeatPort);
         } catch (IOException e) {
@@ -149,6 +149,7 @@ public class MetaServer {
                     continue;
                 }
 
+                System.out.println("Heartbeat connection from: " + fileServerSock.getInetAddress().toString());
                 HeartbeatEntity oneHeartbeatEntity = new HeartbeatEntity(id, fileServerSock);
                 Thread thread = new Thread(oneHeartbeatEntity);
                 thread.setDaemon(true);
