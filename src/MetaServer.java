@@ -251,7 +251,7 @@ public class MetaServer {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            System.out.println("id" + id + " heartbeat exit");
+            System.out.println("id " + id + " heartbeat exit");
         }
     }
 

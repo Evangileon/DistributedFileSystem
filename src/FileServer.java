@@ -160,7 +160,7 @@ public class FileServer {
                                 output.writeObject(fileInfo);
                                 output.close();
                             } catch (IOException e) {
-                                //e.printStackTrace();
+                                e.printStackTrace();
                                 break;
                             }
                             try {
@@ -186,7 +186,7 @@ public class FileServer {
                 }
 
             } catch (IOException e) {
-                //e.printStackTrace();
+                e.printStackTrace();
                 System.out.println("heartbeatToMetaServer loop IOException");
                 try {
                     Thread.sleep(5000);
@@ -194,7 +194,7 @@ public class FileServer {
                     e1.printStackTrace();
                 }
             } catch (InterruptedException e) {
-                //e.printStackTrace();
+                e.printStackTrace();
                 System.out.println("heartbeatToMetaServer loop InterruptedException");
             }
         }
