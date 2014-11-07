@@ -8,6 +8,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,6 +24,11 @@ public class MetaServer {
     int clientPort;
 
     ServerSocket receiveHeartbeatSock;
+
+    // String -> list of Chunks -> location
+    HashMap<String, ArrayList<Integer>> fileChunkMap;
+    HashMap<String, ArrayList<Boolean>> fileChunkAvailableMap;
+
 
     int timeoutMillis;
 
@@ -177,7 +183,9 @@ public class MetaServer {
      * @param id of file server
      */
     public void fileServerFail(int id) {
+
         System.out.println("File server fail: " + id);
+
     }
 
     private void resolveAllFileServerAddress() {
@@ -187,8 +195,44 @@ public class MetaServer {
     }
 
     public void launch() {
+        fileChunkMap = new HashMap<>();
         resolveAllFileServerAddress();
         prepareToReceiveHeartbeat();
+    }
+
+    public void synchronizeWithMap(int id, FileInfo fileInfo) {
+
+        // for each record of file chunks on file server
+        for (Map.Entry<String, ArrayList<FileChunk>> pair : fileInfo) {
+            String fileName = pair.getKey();
+            ArrayList<FileChunk> fileChunks = pair.getValue();
+
+            ArrayList<Integer> chunksOnThisServer;
+            // must be mutually exclusive
+            synchronized (fileChunkMap) {
+                chunksOnThisServer = fileChunkMap.get(fileName);
+                if (chunksOnThisServer == null) {
+                    chunksOnThisServer = new ArrayList<>();
+                    fileChunkMap.put(fileName, chunksOnThisServer);
+                }
+            }
+
+            // synchronize
+            synchronized (chunksOnThisServer) {
+                for (FileChunk fileChunk : fileChunks) {
+                    expandToIndex(chunksOnThisServer, fileChunk.chunkID);
+                    chunksOnThisServer.set(fileChunk.chunkID, id);
+                }
+            }
+        }
+    }
+
+    public static void expandToIndex(ArrayList<Integer> list, int index) {
+        int size = list.size();
+
+        for (int i = 0; i < (index + 1 - size); i++) {
+            list.add(0);
+        }
     }
 
     class HeartbeatEntity implements Runnable {
@@ -222,6 +266,8 @@ public class MetaServer {
 
                     fileInfo.print();
                     System.out.println("fileInfo printed");
+
+                    synchronizeWithMap(this.id, fileInfo);
 
                 } catch (IOException e) {
                     e.printStackTrace();

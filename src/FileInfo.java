@@ -9,7 +9,7 @@ import java.util.*;
 /**
  * realFileName-UUID
  */
-public class FileInfo implements Serializable {
+public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayList<FileChunk>>> {
 
 
     static final String uuidExample = "067e6162-3b6f-4ae2-a171-2470b63dff00";
@@ -72,5 +72,10 @@ public class FileInfo implements Serializable {
         String str = "000123";
         int num = Integer.valueOf(str);
         System.out.println(num);
+    }
+
+    @Override
+    public Iterator<Map.Entry<String, ArrayList<FileChunk>>> iterator() {
+        return fileChunks.entrySet().iterator();
     }
 }
