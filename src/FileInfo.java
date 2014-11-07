@@ -17,7 +17,7 @@ public class FileInfo implements Serializable {
 
     HashMap<String, ArrayList<FileChunk>> fileChunks;
 
-    public  FileInfo(String dir) {
+    public FileInfo(String dir) {
         this.fileDir = dir;
     }
 
