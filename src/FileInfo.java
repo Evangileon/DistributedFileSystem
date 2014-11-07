@@ -40,7 +40,7 @@ public class FileInfo implements Serializable {
 
         for (File file : fileList) {
             String fileName = file.getName();
-            if (fileName.length() <= (UUIDLength + 1)) {
+            if (fileName.length() <= (8 + 1)) {
                 continue;
             }
 
