@@ -29,6 +29,9 @@ public class MetaServer {
     HashMap<String, ArrayList<Integer>> fileChunkMap;
     HashMap<String, ArrayList<Boolean>> fileChunkAvailableMap;
 
+    // file server id -> file info
+    HashMap<Integer, FileInfo> fileServerInfoMap;
+
 
     int timeoutMillis;
 
@@ -186,6 +189,28 @@ public class MetaServer {
 
         System.out.println("File server fail: " + id);
 
+        // update availability
+        synchronized (fileChunkAvailableMap) {
+            FileInfo fileInfo = fileServerInfoMap.get(id);
+
+            for (Map.Entry<String, ArrayList<FileChunk>> pair : fileInfo) {
+                String fileName = pair.getKey();
+                ArrayList<FileChunk> fileChunks = pair.getValue();
+
+                ArrayList<Boolean> availableMap;
+                availableMap = fileChunkAvailableMap.get(fileName);
+                if (availableMap == null) {
+                    availableMap = new ArrayList<>();
+                    fileChunkAvailableMap.put(fileName, availableMap);
+                }
+
+                for (FileChunk fileChunk : fileChunks) {
+                    expandToIndex(availableMap, fileChunk.chunkID);
+                    availableMap.set(fileChunk.chunkID, false);
+                }
+            }
+        }
+
     }
 
     private void resolveAllFileServerAddress() {
@@ -196,6 +221,8 @@ public class MetaServer {
 
     public void launch() {
         fileChunkMap = new HashMap<>();
+        fileChunkAvailableMap = new HashMap<>();
+        fileServerInfoMap = new HashMap<>();
         resolveAllFileServerAddress();
         prepareToReceiveHeartbeat();
     }
@@ -224,14 +251,36 @@ public class MetaServer {
                     chunksOnThisServer.set(fileChunk.chunkID, id);
                 }
             }
+
+            // update availability
+            ArrayList<Boolean> availableMap;
+            synchronized (fileChunkAvailableMap) {
+                availableMap = fileChunkAvailableMap.get(fileName);
+                if (availableMap == null) {
+                    availableMap = new ArrayList<>();
+                    fileChunkAvailableMap.put(fileName, availableMap);
+                }
+            }
+
+            synchronized (availableMap) {
+                for (FileChunk fileChunk : fileChunks) {
+                    expandToIndex(availableMap, fileChunk.chunkID);
+                    availableMap.set(fileChunk.chunkID, true);
+                }
+            }
         }
+
+        synchronized (fileServerInfoMap) {
+            fileServerInfoMap.put(id, fileInfo);
+        }
+
     }
 
-    public static void expandToIndex(ArrayList<Integer> list, int index) {
+    public static <T extends Object> void expandToIndex(ArrayList<T> list, int index) {
         int size = list.size();
 
         for (int i = 0; i < (index + 1 - size); i++) {
-            list.add(0);
+            list.add((T)(new Object()));
         }
     }
 
