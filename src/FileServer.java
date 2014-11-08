@@ -154,7 +154,7 @@ public class FileServer {
                     public void run() {
                         System.out.println("Enter heartbeat send loop");
                         ObjectOutputStream output = null;
-                        while(true) {
+                        while (true) {
                             try {
                                 output = new ObjectOutputStream(heartbeatSock.getOutputStream());
                                 output.writeObject(fileInfo);
@@ -179,13 +179,15 @@ public class FileServer {
                 //##############################################################
 
 
-                thread.join();
-                System.out.println("heartbeat reconnect");
                 try {
+                    thread.join();
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
+                    break;
                 }
+
+                System.out.println("heartbeat reconnect");
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -195,9 +197,6 @@ public class FileServer {
                 } catch (InterruptedException e1) {
                     e1.printStackTrace();
                 }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-                System.out.println("heartbeatToMetaServer loop InterruptedException");
             }
         }
     }

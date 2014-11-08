@@ -8,13 +8,8 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.*;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
-/**
- * Created by evangileon on 11/5/14.
- */
 public class MetaServer {
 
     String hostname;
@@ -24,13 +19,14 @@ public class MetaServer {
     int clientPort;
 
     ServerSocket receiveHeartbeatSock;
+    ServerSocket receiveRequestSock;
 
     // String -> list of Chunks -> location
-    HashMap<String, ArrayList<Integer>> fileChunkMap;
-    HashMap<String, ArrayList<Boolean>> fileChunkAvailableMap;
+    final HashMap<String, List<Integer>> fileChunkMap = new HashMap<>();
+    final HashMap<String, List<Boolean>> fileChunkAvailableMap = new HashMap<>();
 
     // file server id -> file info
-    HashMap<Integer, FileInfo> fileServerInfoMap;
+    final HashMap<Integer, FileInfo> fileServerInfoMap = new HashMap<>();
 
 
     int timeoutMillis;
@@ -39,6 +35,7 @@ public class MetaServer {
 
     public MetaServer() {
     }
+
 
     public MetaServer(Node serverNode) {
         parseXMLToConfigMetaServer(serverNode);
@@ -71,7 +68,7 @@ public class MetaServer {
         try {
             dBuilder = dbFactory.newDocumentBuilder();
             Document doc = dBuilder.parse(fXmlFile);
-            Node root = doc.getDocumentElement();
+            //Node root = doc.getDocumentElement();
             if (!doc.hasChildNodes()) {
                 System.exit(0);
             }
@@ -197,7 +194,7 @@ public class MetaServer {
                 String fileName = pair.getKey();
                 ArrayList<FileChunk> fileChunks = pair.getValue();
 
-                ArrayList<Boolean> availableMap;
+                List<Boolean> availableMap;
                 availableMap = fileChunkAvailableMap.get(fileName);
                 if (availableMap == null) {
                     availableMap = new ArrayList<>();
@@ -220,10 +217,13 @@ public class MetaServer {
     }
 
     public void launch() {
-        fileChunkMap = new HashMap<>();
-        fileChunkAvailableMap = new HashMap<>();
-        fileServerInfoMap = new HashMap<>();
         resolveAllFileServerAddress();
+
+        ResponseFileRequestEntity responseFileRequestEntity = new ResponseFileRequestEntity();
+        Thread threadResponse = new Thread(responseFileRequestEntity);
+        threadResponse.setDaemon(true);
+        threadResponse.start();
+
         prepareToReceiveHeartbeat();
     }
 
@@ -234,13 +234,13 @@ public class MetaServer {
             String fileName = pair.getKey();
             ArrayList<FileChunk> fileChunks = pair.getValue();
 
-            ArrayList<Integer> chunksOnThisServer;
+            List<Integer> chunksOnThisServer;
             // must be mutually exclusive
             synchronized (fileChunkMap) {
                 chunksOnThisServer = fileChunkMap.get(fileName);
                 if (chunksOnThisServer == null) {
-                    chunksOnThisServer = new ArrayList<>();
-                    fileChunkMap.put(fileName, chunksOnThisServer);
+                    chunksOnThisServer = Collections.synchronizedList(new ArrayList<Integer>());
+                    fileChunkMap.put(fileName, (chunksOnThisServer));
                 }
             }
 
@@ -253,11 +253,11 @@ public class MetaServer {
             }
 
             // update availability
-            ArrayList<Boolean> availableMap;
+            List<Boolean> availableMap;
             synchronized (fileChunkAvailableMap) {
                 availableMap = fileChunkAvailableMap.get(fileName);
                 if (availableMap == null) {
-                    availableMap = new ArrayList<>();
+                    availableMap = Collections.synchronizedList(new ArrayList<Boolean>());
                     fileChunkAvailableMap.put(fileName, availableMap);
                 }
             }
@@ -276,11 +276,11 @@ public class MetaServer {
 
     }
 
-    public static <T extends Object> void expandToIndex(ArrayList<T> list, int index) {
+    public static <T> void expandToIndex(List<T> list, int index) {
         int size = list.size();
 
         for (int i = 0; i < (index + 1 - size); i++) {
-            list.add((T)(new Object()));
+            list.add((T) (new Object()));
         }
     }
 
@@ -353,9 +353,71 @@ public class MetaServer {
         }
     }
 
+    class ResponseFileRequestEntity implements Runnable {
+
+        @Override
+        public void run() {
+            try {
+                receiveRequestSock = new ServerSocket(clientPort);
+            } catch (IOException e) {
+                e.printStackTrace();
+                return;
+            }
+
+            while (true) {
+                try {
+                    Socket clientSock = receiveRequestSock.accept();
+
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(clientSock.getInputStream()));
+
+                    String line = reader.readLine();
+                    if (line == null | line.equals("")) {
+                        continue;
+                    }
+
+                    String[] params = line.split("\\|");
+
+                    if (params.length < 3) {
+                        continue;
+                    }
+
+                    String command = params[0];
+                    String fileName = params[1];
+
+                    if (command.length() != 1) {
+                        continue;
+                    }
+
+                    char cmd = command.charAt(0);
+
+                    switch (cmd) {
+                        case 'r':
+                            // TODO read file
+                            break;
+                        case 'a':
+                            // TODO append file
+                            break;
+                        case 'w':
+                            // TODO write file
+                            break;
+                        case 'd':
+                            // TODO delete file
+                            break;
+                        default:
+                            System.out.println("Unknown command: " + cmd);
+                    }
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
     public static void main(String[] args) {
         MetaServer metaServer = new MetaServer();
         metaServer.parseXML("./configs.xml");
         metaServer.launch();
+
     }
 }
