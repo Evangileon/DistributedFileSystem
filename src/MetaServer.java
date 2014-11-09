@@ -28,6 +28,10 @@ public class MetaServer {
     // file server id -> file info
     final HashMap<Integer, FileInfo> fileServerInfoMap = new HashMap<>();
 
+    // pending file chunks not send to file servers
+    // file name -> hash map to chunk id -> file server id expected to store
+    final HashMap<String, HashMap<Integer, Integer>> pendingFileChunks = new HashMap<>();
+
 
     int timeoutMillis;
 
@@ -167,6 +171,38 @@ public class MetaServer {
         }
     }
 
+    public void prepareToReceiveClientRequest() {
+        try {
+            receiveRequestSock = new ServerSocket(clientPort);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        Thread requestHandleThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    try {
+                        Socket clientSock = receiveRequestSock.accept();
+
+                        System.out.println("Receive request from: " + clientSock.toString());
+
+                        ResponseFileRequestEntity responseFileRequestEntity = new ResponseFileRequestEntity(clientSock);
+                        Thread threadResponse = new Thread(responseFileRequestEntity);
+                        threadResponse.setDaemon(true);
+                        threadResponse.start();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+
+        requestHandleThread.setDaemon(true);
+        requestHandleThread.start();
+    }
+
     public int identifyHeartbeatConnection(Socket fileServerSock) {
         for (Map.Entry<Integer, FileServer> pair : allFileServerList.entrySet()) {
             if (pair.getValue().fileServerAddress.equals(fileServerSock.getInetAddress())) {
@@ -219,10 +255,7 @@ public class MetaServer {
     public void launch() {
         resolveAllFileServerAddress();
 
-        ResponseFileRequestEntity responseFileRequestEntity = new ResponseFileRequestEntity();
-        Thread threadResponse = new Thread(responseFileRequestEntity);
-        threadResponse.setDaemon(true);
-        threadResponse.start();
+        prepareToReceiveClientRequest();
 
         prepareToReceiveHeartbeat();
     }
@@ -276,6 +309,31 @@ public class MetaServer {
 
     }
 
+    /**
+     * Release the pending file chunks, that means
+     * @param id the id from which the file info sent
+     * @param fileInfo transited from file servers
+     */
+    public void releasePendingChunks(int id, FileInfo fileInfo) {
+        for (Map.Entry<String, ArrayList<FileChunk>> fileChunksInFileServer : fileInfo) {
+            String fileName = fileChunksInFileServer.getKey();
+            if (!pendingFileChunks.containsKey(fileName)) {
+                continue;
+            }
+
+            HashMap<Integer, Integer> pendingChunks = pendingFileChunks.get(fileName);
+            ArrayList<FileChunk> chunks = fileChunksInFileServer.getValue();
+            for (FileChunk chunk : chunks) {
+                int chunkID = chunk.chunkID;
+
+                // check whether ID equal to keep consistent
+                if (pendingChunks.containsKey(chunkID) && pendingChunks.get(chunkID) == id) {
+                    pendingChunks.remove(chunkID);
+                }
+            }
+        }
+    }
+
     public static <T> void expandToIndex(List<T> list, int index) {
         int size = list.size();
 
@@ -317,6 +375,7 @@ public class MetaServer {
                     System.out.println("fileInfo printed");
 
                     synchronizeWithMap(this.id, fileInfo);
+                    releasePendingChunks(this.id, fileInfo);
 
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -355,15 +414,14 @@ public class MetaServer {
 
     class ResponseFileRequestEntity implements Runnable {
 
+        Socket clientSock;
+
+        public ResponseFileRequestEntity(Socket clientSock) {
+            this.clientSock = clientSock;
+        }
+
         @Override
         public void run() {
-            try {
-                receiveRequestSock = new ServerSocket(clientPort);
-            } catch (IOException e) {
-                e.printStackTrace();
-                return;
-            }
-
             while (true) {
                 try {
                     Socket clientSock = receiveRequestSock.accept();
@@ -377,7 +435,7 @@ public class MetaServer {
 
                     String[] params = line.split("\\|");
 
-                    if (params.length < 3) {
+                    if (params.length < 2) {
                         continue;
                     }
 
