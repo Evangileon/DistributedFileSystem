@@ -35,9 +35,11 @@ public class FileClient {
     public int execute(String[] params) {
         Socket clientSock = null;
         try {
+            System.out.println("Client connect to meta server: " + metaHostName + ":" + metaClientPort);
             clientSock = new Socket(metaHostName, metaClientPort);
         } catch (IOException e) {
             e.printStackTrace();
+            return META_SERVER_NOT_AVAILABLE;
         }
         assert clientSock != null : "Meta server is not available";
 

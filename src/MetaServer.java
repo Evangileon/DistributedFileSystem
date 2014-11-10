@@ -488,9 +488,7 @@ public class MetaServer {
                             System.out.println("Unknown command: " + cmd);
                     }
 
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (ClassNotFoundException e) {
+                } catch (IOException | ClassNotFoundException e) {
                     e.printStackTrace();
                 }
             }

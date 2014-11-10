@@ -60,6 +60,7 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
             for (FileChunk chunk : entry.getValue()) {
                 System.out.print(chunk + " ");
             }
+            System.out.println();
         }
     }
 
