@@ -488,6 +488,8 @@ public class MetaServer {
                             System.out.println("Unknown command: " + cmd);
                     }
 
+                    clientSock.close();
+
                 } catch (IOException | ClassNotFoundException e) {
                     e.printStackTrace();
                 }

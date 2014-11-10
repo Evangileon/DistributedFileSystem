@@ -56,7 +56,7 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
 
     public void print() {
         for (Map.Entry<String, ArrayList<FileChunk>> entry : fileChunks.entrySet()) {
-            System.out.println(entry.getKey()+" : ");
+            System.out.print(entry.getKey()+" : ");
             for (FileChunk chunk : entry.getValue()) {
                 System.out.print(chunk + " ");
             }
