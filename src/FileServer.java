@@ -1,3 +1,7 @@
+/**
+ * @author Jun Yu on 11/5/14.
+ */
+
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -15,9 +19,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 
-/**
- * Created by Jun Yu on 11/5/14.
- */
+
 public class FileServer {
     int id;
     String hostname;

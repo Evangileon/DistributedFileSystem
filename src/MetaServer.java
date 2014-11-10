@@ -1,3 +1,7 @@
+/**
+ * @author Jun Yu on 11/5/14.
+ */
+
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -165,8 +169,12 @@ public class MetaServer {
                 thread.setDaemon(true);
                 thread.start();
             } catch (IOException e) {
+                if (e instanceof SocketException) {
+                    System.out.println(e.toString());
+                    break;
+                }
+
                 e.printStackTrace();
-                //System.exit(0);
             }
         }
     }
@@ -186,13 +194,18 @@ public class MetaServer {
                     try {
                         Socket clientSock = receiveRequestSock.accept();
 
-                        System.out.println("Receive request from: " + clientSock.toString());
+                        System.out.println("Receive request from: " + clientSock.getInetAddress().toString());
 
                         ResponseFileRequestEntity responseFileRequestEntity = new ResponseFileRequestEntity(clientSock);
                         Thread threadResponse = new Thread(responseFileRequestEntity);
                         threadResponse.setDaemon(true);
                         threadResponse.start();
                     } catch (IOException e) {
+                        if (e instanceof SocketException) {
+                            System.out.println(e.toString());
+                            break;
+                        }
+
                         e.printStackTrace();
                     }
                 }
@@ -426,21 +439,31 @@ public class MetaServer {
                 try {
                     Socket clientSock = receiveRequestSock.accept();
 
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(clientSock.getInputStream()));
+//                    BufferedReader reader = new BufferedReader(new InputStreamReader(clientSock.getInputStream()));
+//
+//                    String line = reader.readLine();
+//                    if (line == null | line.equals("")) {
+//                        continue;
+//                    }
+//
+//                    String[] params = line.split("\\|");
+//
+//                    if (params.length < 2) {
+//                        continue;
+//                    }
 
-                    String line = reader.readLine();
-                    if (line == null | line.equals("")) {
-                        continue;
-                    }
+                    ObjectInputStream input = new ObjectInputStream(clientSock.getInputStream());
+                    RequestEnvelop request = (RequestEnvelop)input.readObject();
 
-                    String[] params = line.split("\\|");
+                    String command = request.cmd;
+                    String fileName = request.fileName;
 
-                    if (params.length < 2) {
-                        continue;
-                    }
+                    System.out.println(command + "|" + fileName);
+                    ResponseEnvelop response = new ResponseEnvelop(request);
+                    System.out.println("Response UUID: " + response.uuid.toString());
 
-                    String command = params[0];
-                    String fileName = params[1];
+                    ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
+                    output.writeObject(response);
 
                     if (command.length() != 1) {
                         continue;
@@ -466,6 +489,8 @@ public class MetaServer {
                     }
 
                 } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }
             }
