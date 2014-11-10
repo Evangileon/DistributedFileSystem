@@ -33,7 +33,7 @@ public class FileClient {
     }
 
     public int execute(String[] params) {
-        Socket clientSock = null;
+        Socket clientSock;
         try {
             System.out.println("Client connect to meta server: " + metaHostName + ":" + metaClientPort);
             clientSock = new Socket(metaHostName, metaClientPort);
@@ -41,7 +41,6 @@ public class FileClient {
             e.printStackTrace();
             return META_SERVER_NOT_AVAILABLE;
         }
-        assert clientSock != null : "Meta server is not available";
 
         RequestEnvelop request = new RequestEnvelop(params[0], params[1]);
         request.addParam(Arrays.copyOfRange(params, 2, params.length - 1));

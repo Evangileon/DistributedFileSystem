@@ -36,6 +36,8 @@ public class MetaServer {
     // file name -> hash map to chunk id -> file server id expected to store
     final HashMap<String, HashMap<Integer, Integer>> pendingFileChunks = new HashMap<>();
 
+    // fail times of heartbeat correspondent to id
+    final HashMap<Integer, Integer> fileServerFailTimes = new HashMap<>();
 
     int timeoutMillis;
 
@@ -164,10 +166,12 @@ public class MetaServer {
                 }
 
                 System.out.println("Heartbeat connection from: " + fileServerSock.getInetAddress().toString());
+                // one file server, one heartbeat thread
                 HeartbeatEntity oneHeartbeatEntity = new HeartbeatEntity(id, fileServerSock);
                 Thread thread = new Thread(oneHeartbeatEntity);
                 thread.setDaemon(true);
                 thread.start();
+
             } catch (IOException e) {
                 if (e instanceof SocketException) {
                     System.out.println(e.toString());
@@ -201,14 +205,15 @@ public class MetaServer {
                         threadResponse.setDaemon(true);
                         threadResponse.start();
                     } catch (IOException e) {
+
                         if (e instanceof SocketException) {
-                            System.out.println(e.toString());
                             break;
                         }
 
                         e.printStackTrace();
                     }
                 }
+                System.out.println("Exit request handle loop");
             }
         });
 
@@ -324,7 +329,8 @@ public class MetaServer {
 
     /**
      * Release the pending file chunks, that means
-     * @param id the id from which the file info sent
+     *
+     * @param id       the id from which the file info sent
      * @param fileInfo transited from file servers
      */
     public void releasePendingChunks(int id, FileInfo fileInfo) {
@@ -347,25 +353,28 @@ public class MetaServer {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> void expandToIndex(List<T> list, int index) {
         int size = list.size();
 
         for (int i = 0; i < (index + 1 - size); i++) {
-            list.add((T) (new Object()));
+            list.add((T) new Object());
         }
     }
 
     class HeartbeatEntity implements Runnable {
         Socket fileServerSock;
-        int failTimes;
+
         int id;
 
         public HeartbeatEntity(int id, Socket fileServerSock) {
-            failTimes = 0;
-
             this.id = id;
             this.fileServerSock = fileServerSock;
             fileServerSock.getInetAddress();
+
+            fileServerFailTimes.put(id, 0);
+
+
             try {
                 fileServerSock.setSoTimeout(timeoutMillis);
             } catch (SocketException e) {
@@ -385,33 +394,16 @@ public class MetaServer {
                     FileInfo fileInfo = (FileInfo) objectInput.readObject();
 
                     fileInfo.print();
-                    System.out.println("fileInfo printed");
+                    //System.out.println("fileInfo printed");
 
                     synchronizeWithMap(this.id, fileInfo);
                     releasePendingChunks(this.id, fileInfo);
 
-                } catch (IOException e) {
+                } catch (IOException | ClassNotFoundException e) {
                     e.printStackTrace();
 
-                    if (e instanceof SocketTimeoutException) {
-                        failTimes++;
 
-                        if (failTimes >= 3) {
-                            fileServerFail(id);
-                            // exit this heartbeat thread
-                            break;
-                        }
-                    } else {
-                        failTimes++;
-
-                        if (failTimes >= 3) {
-                            fileServerFail(id);
-                            // exit this heartbeat thread
-                            break;
-                        }
-                    }
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
+                    break;
                 }
             }
             System.out.println("Exit meta server heartbeat receive loop");
@@ -435,65 +427,53 @@ public class MetaServer {
 
         @Override
         public void run() {
-            while (true) {
-                try {
-                    Socket clientSock = receiveRequestSock.accept();
 
-//                    BufferedReader reader = new BufferedReader(new InputStreamReader(clientSock.getInputStream()));
-//
-//                    String line = reader.readLine();
-//                    if (line == null | line.equals("")) {
-//                        continue;
-//                    }
-//
-//                    String[] params = line.split("\\|");
-//
-//                    if (params.length < 2) {
-//                        continue;
-//                    }
+            try {
+                Socket clientSock = receiveRequestSock.accept();
 
-                    ObjectInputStream input = new ObjectInputStream(clientSock.getInputStream());
-                    RequestEnvelop request = (RequestEnvelop)input.readObject();
+                ObjectInputStream input = new ObjectInputStream(clientSock.getInputStream());
+                RequestEnvelop request = (RequestEnvelop) input.readObject();
 
-                    String command = request.cmd;
-                    String fileName = request.fileName;
+                String command = request.cmd;
+                String fileName = request.fileName;
 
-                    System.out.println(command + "|" + fileName);
-                    ResponseEnvelop response = new ResponseEnvelop(request);
-                    System.out.println("Response UUID: " + response.uuid.toString());
+                System.out.println(command + "|" + fileName);
+                ResponseEnvelop response = new ResponseEnvelop(request);
+                System.out.println("Response UUID: " + response.uuid.toString());
 
-                    ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
-                    output.writeObject(response);
+                ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
+                output.writeObject(response);
 
-                    if (command.length() != 1) {
-                        continue;
-                    }
-
-                    char cmd = command.charAt(0);
-
-                    switch (cmd) {
-                        case 'r':
-                            // TODO read file
-                            break;
-                        case 'a':
-                            // TODO append file
-                            break;
-                        case 'w':
-                            // TODO write file
-                            break;
-                        case 'd':
-                            // TODO delete file
-                            break;
-                        default:
-                            System.out.println("Unknown command: " + cmd);
-                    }
-
-                    clientSock.close();
-
-                } catch (IOException | ClassNotFoundException e) {
-                    e.printStackTrace();
+                if (command.length() != 1) {
+                    return;
                 }
+
+                char cmd = command.charAt(0);
+
+                switch (cmd) {
+                    case 'r':
+                        // TODO read file
+                        break;
+                    case 'a':
+                        // TODO append file
+                        break;
+                    case 'w':
+                        // TODO write file
+                        break;
+                    case 'd':
+                        // TODO delete file
+                        break;
+                    default:
+                        System.out.println("Unknown command: " + cmd);
+                }
+
+                clientSock.close();
+
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
             }
+
+            System.out.println("Exit response to: " + clientSock.getInetAddress().toString());
         }
     }
 
