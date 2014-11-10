@@ -55,7 +55,7 @@ public class FileServer {
         try {
             dBuilder = dbFactory.newDocumentBuilder();
             Document doc = dBuilder.parse(fXmlFile);
-            Node root = doc.getDocumentElement();
+            //Node root = doc.getDocumentElement();
             if (!doc.hasChildNodes()) {
                 System.exit(0);
             }
@@ -68,9 +68,9 @@ public class FileServer {
             String hostName = InetAddress.getLocalHost().getHostName();
             XPathFactory xPathFactory = XPathFactory.newInstance();
             XPath xPath = xPathFactory.newXPath();
-            //Node thisFileServerNode = getFileServerNodeWithHostname(doc, xPath, hostName);
+            Node thisFileServerNode = getFileServerNodeWithHostname(doc, xPath, hostName);
             // TODO XPath to find proper file server config for this
-            Node thisFileServerNode = doc.getElementsByTagName("fileServer").item(0);
+            //Node thisFileServerNode = doc.getElementsByTagName("fileServer").item(0);
             parseXMLToConfigFileServer(thisFileServerNode);
 
         } catch (ParserConfigurationException | SAXException | IOException e) {
@@ -81,8 +81,9 @@ public class FileServer {
     public static Node getFileServerNodeWithHostname(Document doc, XPath xPath, String hostname) {
         NodeList nodes = null;
         try {
-            XPathExpression expr = xPath.compile(String.format("/configs/fileServers/fileServer[/hostname='%s']", hostname));
+            XPathExpression expr = xPath.compile(String.format("/configs/fileServers/fileServer[hostname='%s']", hostname));
             nodes = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
+
 
         } catch (XPathExpressionException e) {
             e.printStackTrace();
@@ -153,7 +154,7 @@ public class FileServer {
                     @Override
                     public void run() {
                         System.out.println("Enter heartbeat send loop");
-                        ObjectOutputStream output = null;
+                        ObjectOutputStream output;
                         while (true) {
                             try {
                                 output = new ObjectOutputStream(heartbeatSock.getOutputStream());
