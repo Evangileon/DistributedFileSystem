@@ -173,7 +173,7 @@ public class MetaServer {
     /**
      * Wait for heartbeat connection, create a new thread.
      */
-    public void prepareToReceiveHeartbeat() {
+    private void prepareToReceiveHeartbeat() {
         System.out.println("Meta server receive heartbeat port: " + receiveHeartbeatPort);
         try {
             receiveHeartbeatSock = new ServerSocket(receiveHeartbeatPort);
@@ -219,7 +219,7 @@ public class MetaServer {
     /**
      * Create a new thread to listen to all client requests.
      */
-    public void prepareToReceiveClientRequest() {
+    private void prepareToReceiveClientRequest() {
         try {
             receiveRequestSock = new ServerSocket(clientPort);
         } catch (IOException e) {
@@ -263,7 +263,7 @@ public class MetaServer {
      * @param fileServerSock the newly accepted socket by heartbeat server socket
      * @return the id of the file server server socket
      */
-    public int identifyHeartbeatConnection(Socket fileServerSock) {
+    private int identifyHeartbeatConnection(Socket fileServerSock) {
         for (Map.Entry<Integer, FileServer> pair : allFileServerList.entrySet()) {
             if (pair.getValue().fileServerAddress.equals(fileServerSock.getInetAddress())) {
                 return pair.getKey();
@@ -278,7 +278,7 @@ public class MetaServer {
      *
      * @param id of file server
      */
-    public void fileServerFail(int id) {
+    private void fileServerFail(int id) {
 
         System.out.println("File server fail: " + id);
 
@@ -387,7 +387,7 @@ public class MetaServer {
      * @param id file server identified by identifyHeartbeatConnection
      * @param fileInfo heartbeat carrying file chunk information
      */
-    public void synchronizeWithMap(int id, FileInfo fileInfo) {
+    private void synchronizeWithMap(int id, FileInfo fileInfo) {
 
         // for each record of file chunks on file server
         for (Map.Entry<String, ArrayList<FileChunk>> pair : fileInfo) {
@@ -444,7 +444,7 @@ public class MetaServer {
      * @param id       the id from which the file info sent
      * @param fileInfo transited from file servers
      */
-    public void releasePendingChunks(int id, FileInfo fileInfo) {
+    private void releasePendingChunks(int id, FileInfo fileInfo) {
         for (Map.Entry<String, ArrayList<FileChunk>> fileChunksInFileServer : fileInfo) {
             String fileName = fileChunksInFileServer.getKey();
             if (!pendingFileChunks.containsKey(fileName)) {
@@ -513,6 +513,8 @@ public class MetaServer {
                     ObjectInputStream objectInput = new ObjectInputStream(tcpFlow);
 
                     FileInfo fileInfo = (FileInfo) objectInput.readObject();
+
+                    System.out.println("Heartbeat received from " + id);
 
                     fileInfo.print();
                     //System.out.println("fileInfo printed");

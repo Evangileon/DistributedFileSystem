@@ -261,6 +261,36 @@ public class FileServer {
     }
 
     /**
+     * Append data at the end of specified chunk, the size of data can not exceed
+     * the remaining space of chunk. (null filled space). If exceed, buffer got truncated
+     * @param chunk to be appended
+     * @param buffer data
+     * @return -1 if fails, otherwise the actual size of data appended
+     */
+    public int appendChunk(FileChunk chunk, char[] buffer) {
+        if (chunk == null) {
+            return -1;
+        }
+
+        // get previous data
+        char[] data = readChunk(chunk);
+        if (data == null) {
+            System.out.println("Append must occur when the specified chunk already in disk");
+            return -1;
+        }
+        int dataLength = Helper.charArrayLength(data);
+
+        // fill the data with content in buffer
+        int actualLengthAppended = Math.min(CHUNK_LENGTH - dataLength, buffer.length);
+        System.arraycopy(buffer, 0, data, dataLength, actualLengthAppended);
+
+        // overwrite old chunk
+        writeChunk(chunk, data);
+
+        return actualLengthAppended;
+    }
+
+    /**
      * Run this before any procedure
      */
     private void initialize() {
