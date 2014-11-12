@@ -19,17 +19,24 @@ public class MetaServer {
     String hostname;
 
     InetAddress metaServerAddress;
+    // port to listen to heartbeat connections
     int receiveHeartbeatPort;
+    // port to listen to client requests
     int clientPort;
 
+    // socket to listen to heartbeat connections
     ServerSocket receiveHeartbeatSock;
+    // socket to listen to client requests
     ServerSocket receiveRequestSock;
 
     // String -> list of Chunks -> location
+    // map all chunks of a file to file servers
     final HashMap<String, List<Integer>> fileChunkMap = new HashMap<>();
+    // records the availability  of all chunks of a file
     final HashMap<String, List<Boolean>> fileChunkAvailableMap = new HashMap<>();
 
     // file server id -> file info
+    // map the file server id to file information on this file server
     final HashMap<Integer, FileInfo> fileServerInfoMap = new HashMap<>();
 
     // pending file chunks not send to file servers
@@ -39,8 +46,10 @@ public class MetaServer {
     // fail times of heartbeat correspondent to id
     final HashMap<Integer, Integer> fileServerFailTimes = new HashMap<>();
 
-    int timeoutMillis;
+    // timeout of heartbeat on established connection
+    int timeoutMillis = 5000;
 
+    // store necessary information about file servers
     HashMap<Integer, FileServer> allFileServerList;
 
     public MetaServer() {
@@ -51,6 +60,9 @@ public class MetaServer {
         parseXMLToConfigMetaServer(serverNode);
     }
 
+    /**
+     * Resolve the address of meta server
+     */
     public void resolveAddress() {
         if (hostname == null) {
             return;
@@ -95,6 +107,10 @@ public class MetaServer {
         }
     }
 
+    /**
+     * Retrieve information of all file servers
+     * @param doc XML object
+     */
     private void parseXMLToConfigFileServers(Document doc) {
         Node fileServers = doc.getElementsByTagName("fileServers").item(0);
         NodeList fileServerList = fileServers.getChildNodes();
@@ -124,6 +140,10 @@ public class MetaServer {
         }
     }
 
+    /**
+     * Retrieve all information about meta server
+     * @param serverNode root element node of meta server in XML config file
+     */
     private void parseXMLToConfigMetaServer(Node serverNode) {
         NodeList serverConfig = serverNode.getChildNodes();
 
@@ -146,7 +166,7 @@ public class MetaServer {
     }
 
     /**
-     * Wait for heartbeat connection
+     * Wait for heartbeat connection, create a new thread.
      */
     public void prepareToReceiveHeartbeat() {
         System.out.println("Meta server receive heartbeat port: " + receiveHeartbeatPort);
@@ -156,7 +176,7 @@ public class MetaServer {
             e.printStackTrace();
         }
 
-        Thread headbeatThread = new Thread(new Runnable() {
+        Thread headbeatHandleThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 while (true) {
@@ -187,10 +207,13 @@ public class MetaServer {
             }
         });
 
-        headbeatThread.setDaemon(true);
-        headbeatThread.start();
+        headbeatHandleThread.setDaemon(true);
+        headbeatHandleThread.start();
     }
 
+    /**
+     * Create a new thread to listen to all client requests.
+     */
     public void prepareToReceiveClientRequest() {
         try {
             receiveRequestSock = new ServerSocket(clientPort);
@@ -229,6 +252,12 @@ public class MetaServer {
         requestHandleThread.start();
     }
 
+    /**
+     * Search the remote hostname of new accepted socket on configuration files, to identify
+     * the heartbeat connection.
+     * @param fileServerSock the newly accepted socket by heartbeat server socket
+     * @return the id of the file server server socket
+     */
     public int identifyHeartbeatConnection(Socket fileServerSock) {
         for (Map.Entry<Integer, FileServer> pair : allFileServerList.entrySet()) {
             if (pair.getValue().fileServerAddress.equals(fileServerSock.getInetAddress())) {
@@ -272,20 +301,36 @@ public class MetaServer {
 
     }
 
+    /**
+     * Resolve all IP address of file servers
+     */
     private void resolveAllFileServerAddress() {
         for (Map.Entry<Integer, FileServer> pair : allFileServerList.entrySet()) {
             pair.getValue().resolveAddress();
         }
     }
 
+    /**
+     * Launch all work process
+     */
     public void launch() {
         resolveAllFileServerAddress();
 
         prepareToReceiveClientRequest();
 
         prepareToReceiveHeartbeat();
+
+
     }
 
+    /**
+     * Because meta server store the information about file servers,
+     * upon received heartbeat message, meta server need to update
+     * the information according to file chunk information carried
+     * by heartbeat
+     * @param id file server identified by identifyHeartbeatConnection
+     * @param fileInfo heartbeat carrying file chunk information
+     */
     public void synchronizeWithMap(int id, FileInfo fileInfo) {
 
         // for each record of file chunks on file server
@@ -336,7 +381,9 @@ public class MetaServer {
     }
 
     /**
-     * Release the pending file chunks, that means
+     * Release the pending file chunks, that means all chunks that client supposed
+     * to upload are already uploaded to file servers. Because file server send the
+     * information about these chunks already in its disk.
      *
      * @param id       the id from which the file info sent
      * @param fileInfo transited from file servers
@@ -361,6 +408,13 @@ public class MetaServer {
         }
     }
 
+    /**
+     * Because ArrayList list has a stupid property: it can not access the object which
+     * exceed current size. Some elements need to be append to index
+     * @param list list to be expanded
+     * @param index the index you want to access
+     * @param <T> Object
+     */
     @SuppressWarnings("unchecked")
     public static <T> void expandToIndex(List<T> list, int index) {
         int size = list.size();
@@ -370,6 +424,9 @@ public class MetaServer {
         }
     }
 
+    /**
+     * Thread to handle single heartbeat connection
+     */
     class HeartbeatEntity implements Runnable {
         Socket fileServerSock;
 
@@ -425,6 +482,9 @@ public class MetaServer {
         }
     }
 
+    /**
+     * Thread to handle single client request
+     */
     class ResponseFileRequestEntity implements Runnable {
 
         Socket clientSock;
