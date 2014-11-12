@@ -11,9 +11,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.*;
-import java.io.File;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -21,6 +19,7 @@ import java.util.HashMap;
 
 
 public class FileServer {
+
     int id;
     String hostname;
 
@@ -37,6 +36,8 @@ public class FileServer {
     Socket heartbeatSock;
 
     HashMap<Integer, FileServer> allFileServerList;
+
+    public static final int CHUNK_LENGTH = 8192;
 
     public FileServer() {
 
@@ -204,11 +205,77 @@ public class FileServer {
         }
     }
 
-    public void launch() {
+    /**
+     * Read file chunk from disk
+     * @param chunk chunk controller block
+     * @return the data read
+     */
+    public char[] readChunk(FileChunk chunk) {
+        if (chunk == null) {
+            return null;
+        }
+
+        String filePath = storageDir + "/" + chunk.getChunkName();
+
+        try {
+            FileReader reader = new FileReader(filePath);
+
+            char[] buffer = new char[CHUNK_LENGTH];
+            int size = reader.read(buffer, 0, CHUNK_LENGTH);
+
+            if (size != CHUNK_LENGTH) {
+                System.out.println("Chunk size not equals to " + CHUNK_LENGTH);
+                return null;
+            }
+
+            return buffer;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Write data in buffer to path specified by file chunk block
+     * @param chunk controller block
+     * @param buffer buffer to written
+     * @return -1 if write fails, otherwise the actual size written
+     */
+    public int writeChunk(FileChunk chunk, char[] buffer) {
+        if (chunk == null) {
+            return -1;
+        }
+
+        String filePath = storageDir + "/" + chunk.getChunkName();
+
+        try {
+            FileWriter writer = new FileWriter(filePath);
+
+            writer.write(buffer, 0, buffer.length);
+            return  buffer.length;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    /**
+     * Run this before any procedure
+     */
+    private void initialize() {
         fileInfo = new FileInfo(storageDir);
         fileInfo.recoverFileInfoFromDisk();
         metaServer.resolveAddress();
         resolveAddress();
+    }
+
+    /**
+     * Launch all processes
+     */
+    public void launch() {
+        initialize();
+
         heartbeatToMetaServer();
     }
 

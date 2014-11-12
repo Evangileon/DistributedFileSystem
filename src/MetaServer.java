@@ -339,7 +339,9 @@ public class MetaServer {
             fileServerFail(id);
             times = 0;
         }
-        fileServerFailTimes.put(id, times);
+        synchronized (fileServerFailTimes) {
+            fileServerFailTimes.put(id, times);
+        }
     }
 
     /**
@@ -375,31 +377,6 @@ public class MetaServer {
                 }
             }
         }
-    }
-
-    /**
-     * Run before any procedure
-     */
-    private void initialize() {
-        resolveAllFileServerAddress();
-
-        for (Integer id : allFileServerList.keySet()) {
-            // -1 means never touched
-            fileServerTouch.put(id, (long) -1);
-        }
-    }
-
-    /**
-     * Launch all work process
-     */
-    public void launch() {
-        initialize();
-
-        prepareToReceiveClientRequest();
-
-        prepareToReceiveHeartbeat();
-
-        keepCheckingLivenessOfHeartbeat();
     }
 
     /**
@@ -605,6 +582,7 @@ public class MetaServer {
                 switch (cmd) {
                     case 'r':
                         // TODO read file
+
                         break;
                     case 'a':
                         // TODO append file
@@ -627,6 +605,31 @@ public class MetaServer {
 
             System.out.println("Exit response to: " + clientSock.getInetAddress().toString());
         }
+    }
+
+    /**
+     * Run before any procedure
+     */
+    private void initialize() {
+        resolveAllFileServerAddress();
+
+        for (Integer id : allFileServerList.keySet()) {
+            // -1 means never touched
+            fileServerTouch.put(id, (long) -1);
+        }
+    }
+
+    /**
+     * Launch all work process
+     */
+    public void launch() {
+        initialize();
+
+        prepareToReceiveClientRequest();
+
+        prepareToReceiveHeartbeat();
+
+        keepCheckingLivenessOfHeartbeat();
     }
 
     public static void main(String[] args) {
