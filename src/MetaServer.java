@@ -52,6 +52,11 @@ public class MetaServer {
     // store necessary information about file servers
     HashMap<Integer, FileServer> allFileServerList;
 
+    // latest time the file server with id send heartbeat to meta server
+    final HashMap<Integer, Long> fileServerTouch = new HashMap<>();
+    // times of haven't receive file server heartbeat
+    final HashMap<Integer, Integer> fileServerHeartbeatFailTimes = new HashMap<>();
+
     public MetaServer() {
     }
 
@@ -310,17 +315,91 @@ public class MetaServer {
         }
     }
 
+    private void fileServerHeartbeatTouch(int id) {
+        // set latest time that file server touch to current time
+        Long currentTime = System.currentTimeMillis();
+        fileServerTouch.put(id, currentTime);
+        // set fail times to zero
+        fileServerFailTimes.put(id, 0);
+    }
+
+    /**
+     * File server heartbeat fail one time
+     * @param id of file server
+     */
+    private void fileServerHeartbeatFailOneTime(int id) {
+        Integer times = fileServerHeartbeatFailTimes.get(id);
+        if (times == null) {
+            System.out.println("Logical error");
+            return;
+        }
+
+        times++;
+        if (times >= 3) { // heartbeat fail 3 times means file server down
+            fileServerFail(id);
+            times = 0;
+        }
+        fileServerFailTimes.put(id, times);
+    }
+
+    /**
+     * Compare the value in fileServerTouch with current time, if the different exceeds 5 seconds,
+     * the file server fail for one time.
+     * This procedure runs forever
+     */
+    private void keepCheckingLivenessOfHeartbeat() {
+        while (true) {
+            try {
+                // sleep 5 second first, then run every 5 seconds
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                continue;
+            }
+
+            long currentTime = System.currentTimeMillis();
+
+            synchronized (fileServerTouch) {
+                for (Map.Entry<Integer, Long> pair : fileServerTouch.entrySet()) {
+                    int id = pair.getKey();
+                    long lastTouch = pair.getValue();
+                    if (lastTouch < 0) {
+                        // never touch
+
+                    }
+
+                    long diff = currentTime - lastTouch;
+                    if (diff > 5000) {
+                        fileServerHeartbeatFailOneTime(id);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Run before any procedure
+     */
+    private void initialize() {
+        resolveAllFileServerAddress();
+
+        for (Integer id : allFileServerList.keySet()) {
+            // -1 means never touched
+            fileServerTouch.put(id, (long) -1);
+        }
+    }
+
     /**
      * Launch all work process
      */
     public void launch() {
-        resolveAllFileServerAddress();
+        initialize();
 
         prepareToReceiveClientRequest();
 
         prepareToReceiveHeartbeat();
 
-
+        keepCheckingLivenessOfHeartbeat();
     }
 
     /**
@@ -461,12 +540,17 @@ public class MetaServer {
                     fileInfo.print();
                     //System.out.println("fileInfo printed");
 
+                    // update file chunk information in meta server
                     synchronizeWithMap(this.id, fileInfo);
+
+                    // check and release pending chunks, these chunks are already in file servers
                     releasePendingChunks(this.id, fileInfo);
+
+                    // file server touched meta server
+                    fileServerHeartbeatTouch(this.id);
 
                 } catch (IOException | ClassNotFoundException e) {
                     e.printStackTrace();
-
 
                     break;
                 }
