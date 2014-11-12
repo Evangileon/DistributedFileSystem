@@ -65,9 +65,11 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
     }
 
     public static void main(String[] args) {
-        String str = "000123";
-        int num = Integer.valueOf(str);
-        System.out.println(num);
+        String str = "0(001)23";
+        //int num = Integer.valueOf(str);
+        String ret = str.replaceAll("[()]", "");
+
+        System.out.println(ret);
     }
 
     @Override

@@ -156,31 +156,39 @@ public class MetaServer {
             e.printStackTrace();
         }
 
-        while (true) {
-            try {
-                Socket fileServerSock = receiveHeartbeatSock.accept();
-                int id = identifyHeartbeatConnection(fileServerSock);
-                if (id < 0) {
-                    System.out.println("Unknown address; " + fileServerSock.getInetAddress());
-                    continue;
+        Thread headbeatThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    try {
+                        Socket fileServerSock = receiveHeartbeatSock.accept();
+                        int id = identifyHeartbeatConnection(fileServerSock);
+                        if (id < 0) {
+                            System.out.println("Unknown address; " + fileServerSock.getInetAddress());
+                            continue;
+                        }
+
+                        System.out.println("Heartbeat connection from: " + fileServerSock.getInetAddress().toString());
+                        // one file server, one heartbeat thread
+                        HeartbeatEntity oneHeartbeatEntity = new HeartbeatEntity(id, fileServerSock);
+                        Thread thread = new Thread(oneHeartbeatEntity);
+                        thread.setDaemon(true);
+                        thread.start();
+
+                    } catch (IOException e) {
+                        if (e instanceof SocketException) {
+                            System.out.println(e.toString());
+                            break;
+                        }
+
+                        e.printStackTrace();
+                    }
                 }
-
-                System.out.println("Heartbeat connection from: " + fileServerSock.getInetAddress().toString());
-                // one file server, one heartbeat thread
-                HeartbeatEntity oneHeartbeatEntity = new HeartbeatEntity(id, fileServerSock);
-                Thread thread = new Thread(oneHeartbeatEntity);
-                thread.setDaemon(true);
-                thread.start();
-
-            } catch (IOException e) {
-                if (e instanceof SocketException) {
-                    System.out.println(e.toString());
-                    break;
-                }
-
-                e.printStackTrace();
             }
-        }
+        });
+
+        headbeatThread.setDaemon(true);
+        headbeatThread.start();
     }
 
     public void prepareToReceiveClientRequest() {
