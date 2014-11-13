@@ -382,9 +382,9 @@ public class MetaServer {
 
                     long diff = currentTime - lastTouch;
                     if (diff > 5000) {
+                        System.out.printf("file server fail one time: " + id);
                         fileServerHeartbeatFailOneTime(id);
                     }
-
                 }
             }
 
