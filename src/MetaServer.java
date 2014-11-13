@@ -325,8 +325,6 @@ public class MetaServer {
         // set latest time that file server touch to current time
         Long currentTime = System.currentTimeMillis();
         fileServerTouch.put(id, currentTime);
-        // set fail times to zero
-        fileServerFailTimes.put(id, 0);
     }
 
     /**
@@ -341,7 +339,7 @@ public class MetaServer {
             return;
         }
 
-        times++;
+        times = times + 1;
         System.out.println("ID = " + id + " fail total time: " + times);
         if (times >= 3) { // heartbeat fail 3 times means file server down
             System.out.println("ID = " + id + " is down");
@@ -377,16 +375,18 @@ public class MetaServer {
                 for (Map.Entry<Integer, Long> pair : fileServerTouch.entrySet()) {
                     int id = pair.getKey();
                     long lastTouch = pair.getValue();
-//                    if (lastTouch < 0) {
-//                        // never touch
-//
-//                    }
+
                     System.out.println(String.format("id = %d, %s = %d, %s = %d", id, "CurrenTime", currentTime, "LastTouch", lastTouch));
 
                     long diff = currentTime - lastTouch;
                     if (diff > 5000) {
                         System.out.println("File server fail one time: " + id);
                         fileServerHeartbeatFailOneTime(id);
+                    } else {
+                        // touched within 5 seconds
+                        synchronized (fileServerFailTimes) {
+                            fileServerFailTimes.put(id, 0);
+                        }
                     }
                 }
             }
