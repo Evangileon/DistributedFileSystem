@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configs>
+<configs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="configs.xsd">
     <metaServer>
         <hostname>dc02.utdallas.edu</hostname>
         <receiveHeartbeatPort>50001</receiveHeartbeatPort>
@@ -9,20 +10,16 @@
     <fileServers>
         <fileServer>
             <id>1</id>
-            <hostname>dc05.utdallas.edu</hostname>
+            <hostname>dc03.utdallas.edu</hostname>
             <receiveMetaFilePort>50002</receiveMetaFilePort>
             <storageDir>files1</storageDir>
         </fileServer>
-    </fileServers>
-    <fileServers>
         <fileServer>
             <id>2</id>
             <hostname>dc05.utdallas.edu</hostname>
             <receiveMetaFilePort>50002</receiveMetaFilePort>
             <storageDir>files2</storageDir>
         </fileServer>
-    </fileServers>
-    <fileServers>
         <fileServer>
             <id>3</id>
             <hostname>dc08.utdallas.edu</hostname>

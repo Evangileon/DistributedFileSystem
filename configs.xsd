@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="configs" type="configsType"/>
+  <xs:complexType name="metaServerType">
+    <xs:sequence>
+      <xs:element type="xs:string" name="hostname"/>
+      <xs:element type="xs:integer" name="receiveHeartbeatPort"/>
+      <xs:element type="xs:integer" name="clientPort"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="configsType">
+    <xs:sequence>
+      <xs:element type="metaServerType" name="metaServer"/>
+      <xs:element type="fileServersType" name="fileServers"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="fileServersType">
+    <xs:sequence>
+      <xs:element type="fileServerType" name="fileServer" maxOccurs="unbounded" minOccurs="1"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="fileServerType">
+    <xs:sequence>
+      <xs:element name="id" type="xs:integer"/>
+      <xs:element name="hostname" type="xs:string"/>
+      <xs:element type="xs:integer" name="receiveMetaFilePort"/>
+      <xs:element name="storageDir" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>
