@@ -551,6 +551,9 @@ public class MetaServer {
                     // update file chunk information in meta server
                     synchronizeWithMap(this.id, fileInfo);
 
+                    printFileChunkMap();
+                    printAvailabilityMap();
+
                     // check and release pending chunks, these chunks are already in file servers
                     releasePendingChunks(this.id, fileInfo);
 
@@ -570,6 +573,18 @@ public class MetaServer {
                 e.printStackTrace();
             }
             System.out.println("id " + id + " heartbeat exit");
+        }
+    }
+
+    private void printFileChunkMap() {
+        for (Map.Entry<String, List<Integer>> pair : fileChunkMap.entrySet()) {
+            System.out.printf("%s: %s\n", pair.getKey(), Arrays.toString(pair.getValue().toArray()));
+        }
+    }
+
+    private void printAvailabilityMap() {
+        for (Map.Entry<String, List<Boolean>> pair : fileChunkAvailableMap.entrySet()) {
+            System.out.printf("%s: %s\n", pair.getKey(), Arrays.toString(pair.getValue().toArray()));
         }
     }
 
@@ -615,7 +630,7 @@ public class MetaServer {
                     case 'r':
                         // TODO read file
                         if (request.params.size() != 2) {
-                            response.setError(FileClient.INVALID_COMMAND);
+                            error = FileClient.INVALID_COMMAND;
                             break;
                         }
                         offset = Integer.valueOf(request.params.get(0));
@@ -626,17 +641,25 @@ public class MetaServer {
                         break;
                     case 'a':
                         // TODO append file
+                        if (request.params.size() != 1) {
+                            error = FileClient.INVALID_COMMAND;
+                            break;
+                        }
+                        length = Integer.valueOf(request.params.get(0));
+
+                        error = append(fileName, length, chunkList, chunkLocationList);
+
                         break;
                     case 'w':
                         // TODO write file
                         if (request.params.size() != 1) {
-                            response.setError(FileClient.INVALID_COMMAND);
+                            error = FileClient.INVALID_COMMAND;
                             break;
                         }
-                        if (request.data == null) {
-                            response.setError(FileClient.SUCCESS);
-                            break;
-                        }
+//                        if (request.data == null) {
+//                            response.setError(FileClient.SUCCESS);
+//                            break;
+//                        }
                         length = Integer.valueOf(request.params.get(0));
 
                         error = write(fileName, length, chunkList, chunkLocationList);
@@ -646,8 +669,7 @@ public class MetaServer {
                         // TODO delete file
                         break;
                     default:
-                        error = 0;
-                        response.setError(FileClient.INVALID_COMMAND);
+                        error = FileClient.INVALID_COMMAND;
                         System.out.println("Unknown command: " + cmd);
                 }
 

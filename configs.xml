@@ -11,7 +11,24 @@
             <id>1</id>
             <hostname>dc02.utdallas.edu</hostname>
             <receiveMetaFilePort>50002</receiveMetaFilePort>
-            <storageDir>files</storageDir>
+            <storageDir>files1</storageDir>
         </fileServer>
     </fileServers>
+    <fileServers>
+        <fileServer>
+            <id>2</id>
+            <hostname>dc05.utdallas.edu</hostname>
+            <receiveMetaFilePort>50002</receiveMetaFilePort>
+            <storageDir>files2</storageDir>
+        </fileServer>
+    </fileServers>
+    <fileServers>
+        <fileServer>
+            <id>3</id>
+            <hostname>dc09.utdallas.edu</hostname>
+            <receiveMetaFilePort>50002</receiveMetaFilePort>
+            <storageDir>files3</storageDir>
+        </fileServer>
+    </fileServers>
+
 </configs>
