@@ -195,8 +195,8 @@ public class FileServer {
                 System.out.println("heartbeat reconnect");
 
             } catch (IOException e) {
+                //System.out.println(heartbeatSock.getInetAddress().toString());
                 e.printStackTrace();
-                System.out.println("heartbeatToMetaServer loop IOException");
                 try {
                     Thread.sleep(5000);
                 } catch (InterruptedException e1) {

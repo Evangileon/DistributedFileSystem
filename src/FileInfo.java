@@ -46,7 +46,7 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
                 String chunkID = fileName.substring(lastDash + 1);
 
                 // read data in file
-                FileReader reader = new FileReader(fileName);
+                FileReader reader = new FileReader(this.fileDir + "/" + fileName);
                 char[] buffer = new char[FileChunk.FIXED_SIZE];
                 reader.read(buffer, 0, FileChunk.FIXED_SIZE);
                 int actualLength = Helper.charArrayLength(buffer);
