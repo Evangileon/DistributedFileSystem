@@ -16,7 +16,7 @@ public class FileClient {
     //ArrayList<Socket> socketToServers;
     public static final int SUCCESS = 0;
     public static final int CHUNK_NOT_AVAILABLE = -1;
-    public static final int CHUNK_IN_PENGING = -2;
+    public static final int CHUNK_IN_PENDING = -2;
     public static final int FILE_SERVER_NOT_AVAILABLE = -3;
     public static final int META_SERVER_NOT_AVAILABLE = -4;
     public static final int CAUSAL_ORDERING_VIOLATED = -5;
@@ -74,8 +74,8 @@ public class FileClient {
     public int sendRequestToMeta(RequestEnvelop request, Socket clientSock) {
         try {
             ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
-
             output.writeObject(request);
+            output.flush();
         } catch (IOException e) {
             e.printStackTrace();
             return -1;

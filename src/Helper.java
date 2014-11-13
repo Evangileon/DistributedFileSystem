@@ -3,6 +3,7 @@ import java.util.List;
 public class Helper {
     /**
      * Return the length of sub-array whose last char is the last non-null char of buffer
+     *
      * @param buffer raw buffer, who may have null
      * @return non-null length
      */

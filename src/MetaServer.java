@@ -442,6 +442,48 @@ public class MetaServer {
     }
 
     /**
+     * Add to pending list, if the entry for a filename not exist, just create it
+     *
+     * @param fileName     this file has pending chunks
+     * @param chunkID      pending chunk
+     * @param fileServerID pending chunk intended to store
+     */
+    private void addToPendingList(String fileName, int chunkID, int fileServerID) {
+        HashMap<Integer, Integer> pending = pendingFileChunks.get(fileName);
+        if (pending == null) {
+            pending = new HashMap<>();
+            pendingFileChunks.put(fileName, pending);
+        }
+        pending.put(chunkID, fileServerID);
+    }
+
+    /**
+     * Remove from pending list. The removing happens if and only if three parameters exist,
+     * and match to pending list. Otherwise do nothing.
+     *
+     * @param fileName     this file has pending chunks
+     * @param chunkID      pending chunk
+     * @param fileServerID pending chunk intended to store
+     */
+    private void removeFromPendingList(String fileName, int chunkID, int fileServerID) {
+        HashMap<Integer, Integer> pending = pendingFileChunks.get(fileName);
+        if (pending == null) {
+            return;
+        }
+        if (!pending.containsKey(chunkID)) {
+            return;
+        }
+        if (pending.get(chunkID) != fileServerID) {
+            return;
+        }
+        pending.remove(chunkID);
+        // remove file entry
+        if (pending.size() == 0) {
+            pendingFileChunks.remove(fileName);
+        }
+    }
+
+    /**
      * Release the pending file chunks, that means all chunks that client supposed
      * to upload are already uploaded to file servers. Because file server send the
      * information about these chunks already in its disk.
@@ -457,20 +499,11 @@ public class MetaServer {
                 continue;
             }
 
-            HashMap<Integer, Integer> pendingChunks = pendingFileChunks.get(fileName);
             ArrayList<FileChunk> chunks = fileChunksInFileServer.getValue();
             for (FileChunk chunk : chunks) {
                 int chunkID = chunk.chunkID;
-
                 // check whether ID equal to keep consistent
-                if (pendingChunks.containsKey(chunkID) && pendingChunks.get(chunkID) == id) {
-                    // remove from specified file pending list
-                    pendingChunks.remove(chunkID);
-                    // remove entry in global pending list if specified file pending list is zero
-                    if (pendingChunks.size() == 0) {
-                        pendingFileChunks.remove(fileName);
-                    }
-                }
+                removeFromPendingList(fileName, chunkID, id);
             }
         }
     }
@@ -626,7 +659,7 @@ public class MetaServer {
                 }
                 ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
                 output.writeObject(response);
-
+                output.flush();
                 clientSock.close();
 
             } catch (IOException | ClassNotFoundException e) {
@@ -639,10 +672,11 @@ public class MetaServer {
 
     /**
      * Read file from meta data
-     * @param fileName file to read
-     * @param offset first start index inclusive
-     * @param length to read
-     * @param chunkList to store chunks to scan
+     *
+     * @param fileName          file to read
+     * @param offset            first start index inclusive
+     * @param length            to read
+     * @param chunkList         to store chunks to scan
      * @param chunkLocationList to store location of chunks correspondent to chunkList
      * @return error code
      */
@@ -665,7 +699,7 @@ public class MetaServer {
         if (pending != null) {
             for (Integer chunkID : chunksNeedToScan) {
                 if (pending.containsKey(chunkID)) {
-                    return FileClient.CHUNK_IN_PENGING;
+                    return FileClient.CHUNK_IN_PENDING;
                 }
             }
         }
@@ -703,7 +737,7 @@ public class MetaServer {
      */
     private int checkLastChunkOfFile(String fileName) {
         if (pendingFileChunks.containsKey(fileName)) {
-            return FileClient.CHUNK_IN_PENGING;
+            return FileClient.CHUNK_IN_PENDING;
         }
 
         List<Boolean> avails = fileChunkAvailableMap.get(fileName);
@@ -725,6 +759,64 @@ public class MetaServer {
         return FileChunk.FIXED_SIZE - actualLength;
     }
 
+    /**
+     * Get the ID of last chunk of the file
+     *
+     * @param fileName file
+     * @return chunk ID of last chunk, or error code
+     */
+    private int getLastChunkOfFile(String fileName) {
+        if (pendingFileChunks.containsKey(fileName)) {
+            return FileClient.CHUNK_IN_PENDING;
+        }
+
+        List<Boolean> avails = fileChunkAvailableMap.get(fileName);
+        boolean availableOfLast = avails.get(avails.size() - 1);
+        if (!availableOfLast) {
+            return FileClient.CHUNK_NOT_AVAILABLE;
+        }
+
+        List<Integer> list = fileChunkMap.get(fileName);
+        if (list == null) {
+            return FileClient.FILE_NOT_EXIST;
+        }
+        return list.size() - 1;
+    }
+
+    /**
+     * Get the location of last chunk of the file
+     *
+     * @param fileName file
+     * @return file server ID of last chunk, or error code
+     */
+    private int getLocationOfLastChunkOfFile(String fileName) {
+        if (pendingFileChunks.containsKey(fileName)) {
+            return FileClient.CHUNK_IN_PENDING;
+        }
+
+        List<Boolean> avails = fileChunkAvailableMap.get(fileName);
+        boolean availableOfLast = avails.get(avails.size() - 1);
+        if (!availableOfLast) {
+            return FileClient.CHUNK_NOT_AVAILABLE;
+        }
+
+        List<Integer> list = fileChunkMap.get(fileName);
+        if (list == null) {
+            return FileClient.FILE_NOT_EXIST;
+        }
+        return list.get(list.size() - 1);
+    }
+
+    /**
+     * Write to meta data, it will add new file chunks to pending list,
+     * Then heartbeat message will synchronize meta data map, and remove from pending list in the future
+     *
+     * @param fileName          to create
+     * @param length            of new file
+     * @param chunkList         list of chunk to be created
+     * @param chunkLocationList list of chunk location at file server
+     * @return 0 if succeed, otherwise error code
+     */
     public int write(String fileName, int length, List<Integer> chunkList, List<Integer> chunkLocationList) {
 
         chunkList.clear();
@@ -736,10 +828,20 @@ public class MetaServer {
         Integer[] idArray = new Integer[allFileServerList.size()];
         idArray = allFileServerList.keySet().toArray(idArray);
 
+        // randomly distribute chunks
         for (int i = 0; i <= lastChunk; i++) {
             int location = random.nextInt(allFileServerList.size());
             chunkList.add(i);
             chunkLocationList.add(idArray[location]);
+        }
+
+        // add to pending list
+        Iterator<Integer> chunkItor = chunkList.iterator();
+        Iterator<Integer> locationItor = chunkLocationList.iterator();
+        while (chunkItor.hasNext()) {
+            int chunk = chunkItor.next();
+            int loc = locationItor.next();
+            addToPendingList(fileName, chunk, loc);
         }
 
         // create first chunk, it's empty, and will be filled by client
@@ -750,6 +852,7 @@ public class MetaServer {
             RequestEnvelop request = new RequestEnvelop("w", fileName);
             request.params.add(Integer.toString(Math.min(FileChunk.FIXED_SIZE, length)));
             output.writeObject(request);
+            output.flush();
         } catch (IOException e) {
             e.printStackTrace();
             return FileClient.FILE_SERVER_NOT_AVAILABLE;
@@ -758,8 +861,55 @@ public class MetaServer {
         return FileClient.SUCCESS;
     }
 
-    public int append(String fileName, int length, List<Integer> chunksAffected) {
-        return 0;
+    /**
+     * Append data to file, may update last non-full chunk
+     *
+     * @param fileName          file
+     * @param length            to append
+     * @param chunkList         list of chunks affected
+     * @param chunkLocationList list of location of chunks
+     * @return 0 for success, or error code
+     */
+    public int append(String fileName, int length, List<Integer> chunkList, List<Integer> chunkLocationList) {
+        chunkList.clear();
+        chunkLocationList.clear();
+
+        int lastRemain = checkLastChunkOfFile(fileName);
+        if (lastRemain < 0) {
+            return lastRemain; // error code
+        }
+
+        int lastChunk = getLastChunkOfFile(fileName);
+        if (lastRemain > 0) {
+            // need update the non-full chunk
+            chunkList.add(lastChunk);
+            chunkLocationList.add(getLocationOfLastChunkOfFile(fileName));
+        }
+
+        // then append entirely new chunks
+        int newLastChunk = ((length - lastRemain) - 1) / FileChunk.FIXED_SIZE;
+        Random random = new Random();
+
+        Integer[] idArray = new Integer[allFileServerList.size()];
+        idArray = allFileServerList.keySet().toArray(idArray);
+
+        // randomly distribute new chunks
+        for (int i = lastChunk + 1; i <= newLastChunk; i++) {
+            int location = random.nextInt(allFileServerList.size());
+            chunkList.add(i);
+            chunkLocationList.add(idArray[location]);
+        }
+
+        // add to pending list
+        Iterator<Integer> chunkItor = chunkList.iterator();
+        Iterator<Integer> locationItor = chunkLocationList.iterator();
+        while (chunkItor.hasNext()) {
+            int chunk = chunkItor.next();
+            int loc = locationItor.next();
+            addToPendingList(fileName, chunk, loc);
+        }
+
+        return FileClient.SUCCESS;
     }
 
     /**
