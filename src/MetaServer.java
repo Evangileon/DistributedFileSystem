@@ -944,6 +944,11 @@ public class MetaServer {
             // -1 means never touched
             fileServerTouch.put(id, (long) -1);
         }
+
+        for (Integer id : allFileServerList.keySet()) {
+            // -1 means never touched
+            fileServerHeartbeatFailTimes.put(id, 0);
+        }
     }
 
     /**

@@ -166,6 +166,7 @@ public class FileServer {
                                 System.out.println("fileInfo flushed");
                                 //output.close();
                             } catch (IOException e) {
+                                System.out.println(heartbeatSock.getRemoteSocketAddress().toString());
                                 e.printStackTrace();
                                 break;
                             }
