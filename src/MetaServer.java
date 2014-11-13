@@ -301,7 +301,7 @@ public class MetaServer {
                 }
 
                 for (FileChunk fileChunk : fileChunks) {
-                    Helper.expandToIndex(availableMap, fileChunk.chunkID);
+                    Helper.expandToIndexBoolean(availableMap, fileChunk.chunkID);
                     availableMap.set(fileChunk.chunkID, false);
                 }
             }
@@ -415,7 +415,7 @@ public class MetaServer {
             // synchronize
             synchronized (chunksOnThisServer) {
                 for (FileChunk fileChunk : fileChunks) {
-                    Helper.expandToIndex(chunksOnThisServer, fileChunk.chunkID);
+                    Helper.expandToIndexInteger(chunksOnThisServer, fileChunk.chunkID);
                     chunksOnThisServer.set(fileChunk.chunkID, id);
                 }
             }
@@ -432,7 +432,7 @@ public class MetaServer {
 
             synchronized (availableMap) {
                 for (FileChunk fileChunk : fileChunks) {
-                    Helper.expandToIndex(availableMap, fileChunk.chunkID);
+                    Helper.expandToIndexBoolean(availableMap, fileChunk.chunkID);
                     availableMap.set(fileChunk.chunkID, true);
                 }
             }

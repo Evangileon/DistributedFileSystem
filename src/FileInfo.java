@@ -1,5 +1,4 @@
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.Serializable;
 import java.util.*;
@@ -81,11 +80,17 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
     }
 
     public static void main(String[] args) {
-        String str = "0(001)23";
-        //int num = Integer.valueOf(str);
-        String ret = str.replaceAll("[()]", "");
+        HashMap<String, List<Integer>> map = new HashMap<>();
+        List<Integer> list = Collections.synchronizedList(new ArrayList<Integer>());
+        map.put("first", list);
 
-        System.out.println(ret);
+        list.add(123);
+
+        List<Integer> list2 = map.get("first");
+
+        for (Integer i : list2) {
+            System.out.println(i);
+        }
     }
 
     @Override
