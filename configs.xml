@@ -25,7 +25,7 @@
     <fileServers>
         <fileServer>
             <id>3</id>
-            <hostname>dc09.utdallas.edu</hostname>
+            <hostname>dc08.utdallas.edu</hostname>
             <receiveMetaFilePort>50002</receiveMetaFilePort>
             <storageDir>files3</storageDir>
         </fileServer>
