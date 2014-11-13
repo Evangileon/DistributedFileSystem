@@ -286,7 +286,7 @@ public class MetaServer {
      */
     private void fileServerFail(int id) {
 
-        System.out.println("File server fail: " + id);
+        System.out.println("File server fail three times: " + id);
 
         // update availability
         synchronized (fileChunkAvailableMap) {
@@ -379,6 +379,7 @@ public class MetaServer {
 //                        // never touch
 //
 //                    }
+                    System.out.println(String.format("id = %d, %s = %d, %s = %d", id, "CurrenTime", currentTime, "LastTouch", lastTouch));
 
                     long diff = currentTime - lastTouch;
                     if (diff > 5000) {
