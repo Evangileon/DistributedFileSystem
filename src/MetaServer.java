@@ -53,9 +53,9 @@ public class MetaServer {
     TreeMap<Integer, FileServer> allFileServerList;
 
     // latest time the file server with id send heartbeat to meta server
-    final HashMap<Integer, Long> fileServerTouch = new HashMap<>();
+    final Map<Integer, Long> fileServerTouch = Collections.synchronizedMap(new HashMap<Integer, Long>());
     // times of haven't receive file server heartbeat
-    final HashMap<Integer, Integer> fileServerHeartbeatFailTimes = new HashMap<>();
+    final Map<Integer, Integer> fileServerHeartbeatFailTimes = Collections.synchronizedMap(new HashMap<Integer, Integer>());
 
     boolean terminated = false;
 
