@@ -363,6 +363,9 @@ public class MetaServer {
                 continue;
             }
 
+            printFileChunkMap();
+            printAvailabilityMap();
+
             long currentTime = System.currentTimeMillis();
 
             synchronized (fileServerTouch) {
@@ -551,8 +554,6 @@ public class MetaServer {
                     // update file chunk information in meta server
                     synchronizeWithMap(this.id, fileInfo);
 
-                    printFileChunkMap();
-                    printAvailabilityMap();
 
                     // check and release pending chunks, these chunks are already in file servers
                     releasePendingChunks(this.id, fileInfo);
@@ -577,14 +578,24 @@ public class MetaServer {
     }
 
     private void printFileChunkMap() {
+        System.out.println("File Chunk Map:");
         for (Map.Entry<String, List<Integer>> pair : fileChunkMap.entrySet()) {
-            System.out.printf("%s: %s\n", pair.getKey(), Arrays.toString(pair.getValue().toArray()));
+            System.out.printf("%s: ", pair.getKey());
+            for (Integer id : pair.getValue()) {
+                System.out.print(id + ", ");
+            }
+            System.out.println();
         }
     }
 
     private void printAvailabilityMap() {
+        System.out.println("File Chunk Availability Map:");
         for (Map.Entry<String, List<Boolean>> pair : fileChunkAvailableMap.entrySet()) {
-            System.out.printf("%s: %s\n", pair.getKey(), Arrays.toString(pair.getValue().toArray()));
+            System.out.printf("%s: ", pair.getKey());
+            for (Boolean avail : pair.getValue()) {
+                System.out.print(avail + ", ");
+            }
+            System.out.println();
         }
     }
 
