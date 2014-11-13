@@ -42,7 +42,7 @@ public class Helper {
         int size = list.size();
 
         for (int i = 0; i < (index + 1 - size); i++) {
-            list.add(true);
+            list.add(false);
         }
     }
 }

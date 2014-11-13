@@ -57,6 +57,8 @@ public class MetaServer {
     // times of haven't receive file server heartbeat
     final HashMap<Integer, Integer> fileServerHeartbeatFailTimes = new HashMap<>();
 
+    boolean terminated = false;
+
     public MetaServer() {
     }
 
@@ -177,13 +179,14 @@ public class MetaServer {
      */
     private void prepareToReceiveHeartbeat() {
         System.out.println("Meta server receive heartbeat port: " + receiveHeartbeatPort);
+        System.out.println("Number of file servers: " + allFileServerList.size());
         try {
             receiveHeartbeatSock = new ServerSocket(receiveHeartbeatPort);
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        Thread heardbeatHandleThread = new Thread(new Runnable() {
+        Thread heartbeatHandleThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 while (true) {
@@ -214,8 +217,8 @@ public class MetaServer {
             }
         });
 
-        heardbeatHandleThread.setDaemon(true);
-        heardbeatHandleThread.start();
+        heartbeatHandleThread.setDaemon(true);
+        heartbeatHandleThread.start();
     }
 
     /**
@@ -381,7 +384,13 @@ public class MetaServer {
                     if (diff > 5000) {
                         fileServerHeartbeatFailOneTime(id);
                     }
+
                 }
+            }
+
+            if (terminated) {
+                System.out.println("Exit timeout checking loop");
+                break;
             }
         }
     }
