@@ -31,33 +31,34 @@ public class MetaServer {
 
     // String -> list of Chunks -> location
     // map all chunks of a file to file servers
-    final HashMap<String, List<Integer>> fileChunkMap = new HashMap<>();
+    final Map<String, List<Integer>> fileChunkMap = Collections.synchronizedMap(new HashMap<String, List<Integer>>());
     // records the availability  of all chunks of a file
-    final HashMap<String, List<Boolean>> fileChunkAvailableMap = new HashMap<>();
+    final Map<String, List<Boolean>> fileChunkAvailableMap = Collections.synchronizedMap(new HashMap<String, List<Boolean>>());
 
     // file server id -> file info
     // map the file server id to file information on this file server
-    final HashMap<Integer, FileInfo> fileServerInfoMap = new HashMap<>();
+    final Map<Integer, FileInfo> fileServerInfoMap = Collections.synchronizedMap(new HashMap<Integer, FileInfo>());
 
     // pending file chunks not send to file servers
     // file name -> hash map to chunk id -> file server id expected to store
-    final HashMap<String, HashMap<Integer, Integer>> pendingFileChunks = new HashMap<>();
+    final Map<String, Map<Integer, Integer>> pendingFileChunks = Collections.synchronizedMap(new HashMap<String, Map<Integer, Integer>>());
 
     // fail times of heartbeat correspondent to id
-    final HashMap<Integer, Integer> fileServerFailTimes = new HashMap<>();
-
-    // timeout of heartbeat on established connection
-    int timeoutMillis = 5000;
+    final Map<Integer, Integer> fileServerFailTimes = Collections.synchronizedMap(new HashMap<Integer, Integer>());
 
     // store necessary information about file servers
-    TreeMap<Integer, FileServer> allFileServerList;
+    final TreeMap<Integer, FileServer> allFileServerList = new TreeMap<>();
 
     // latest time the file server with id send heartbeat to meta server
     final Map<Integer, Long> fileServerTouch = Collections.synchronizedMap(new HashMap<Integer, Long>());
     // times of haven't receive file server heartbeat
     final Map<Integer, Integer> fileServerHeartbeatFailTimes = Collections.synchronizedMap(new HashMap<Integer, Integer>());
 
+    // termination flag
     boolean terminated = false;
+
+    // timeout of heartbeat on established connection
+    int timeoutMillis = 5000;
 
     public MetaServer() {
     }
@@ -88,7 +89,6 @@ public class MetaServer {
      * @param filename xml
      */
     private void parseXML(String filename) {
-        allFileServerList = new TreeMap<>();
 
         File fXmlFile = new File(filename);
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
@@ -342,7 +342,9 @@ public class MetaServer {
         }
 
         times++;
+        System.out.println("ID = " + id + " fail total time: " + times);
         if (times >= 3) { // heartbeat fail 3 times means file server down
+            System.out.println("ID = " + id + " is down");
             fileServerFail(id);
             times = 0;
         }
@@ -462,12 +464,16 @@ public class MetaServer {
      * @param fileServerID pending chunk intended to store
      */
     private void addToPendingList(String fileName, int chunkID, int fileServerID) {
-        HashMap<Integer, Integer> pending = pendingFileChunks.get(fileName);
+        Map<Integer, Integer> pending = pendingFileChunks.get(fileName);
         if (pending == null) {
-            pending = new HashMap<>();
-            pendingFileChunks.put(fileName, pending);
+            pending = Collections.synchronizedMap(new HashMap<Integer, Integer>());
+            synchronized (pendingFileChunks) {
+                pendingFileChunks.put(fileName, pending);
+            }
         }
-        pending.put(chunkID, fileServerID);
+        synchronized (pending) {
+            pending.put(chunkID, fileServerID);
+        }
     }
 
     /**
@@ -479,7 +485,7 @@ public class MetaServer {
      * @param fileServerID pending chunk intended to store
      */
     private void removeFromPendingList(String fileName, int chunkID, int fileServerID) {
-        HashMap<Integer, Integer> pending = pendingFileChunks.get(fileName);
+        Map<Integer, Integer> pending = pendingFileChunks.get(fileName);
         if (pending == null) {
             return;
         }
@@ -489,10 +495,14 @@ public class MetaServer {
         if (pending.get(chunkID) != fileServerID) {
             return;
         }
-        pending.remove(chunkID);
+        synchronized (pending) {
+            pending.remove(chunkID);
+        }
         // remove file entry
         if (pending.size() == 0) {
-            pendingFileChunks.remove(fileName);
+            synchronized (pendingFileChunks) {
+                pendingFileChunks.remove(fileName);
+            }
         }
     }
 
@@ -678,10 +688,7 @@ public class MetaServer {
                             error = FileClient.INVALID_COMMAND;
                             break;
                         }
-//                        if (request.data == null) {
-//                            response.setError(FileClient.SUCCESS);
-//                            break;
-//                        }
+
                         length = Integer.valueOf(request.params.get(0));
 
                         error = write(fileName, length, chunkList, chunkLocationList);
@@ -739,7 +746,7 @@ public class MetaServer {
         }
 
         // check pending list
-        HashMap<Integer, Integer> pending = pendingFileChunks.get(fileName);
+        Map<Integer, Integer> pending = pendingFileChunks.get(fileName);
         if (pending != null) {
             for (Integer chunkID : chunksNeedToScan) {
                 if (pending.containsKey(chunkID)) {
