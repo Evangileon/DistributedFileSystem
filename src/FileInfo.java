@@ -1,13 +1,15 @@
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.Serializable;
 import java.util.*;
-
 
 
 public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayList<FileChunk>>> {
 
     String fileDir;
 
+    // file chunks are in increasing order by their id
     HashMap<String, ArrayList<FileChunk>> fileChunks;
 
     public FileInfo(String dir) {
@@ -30,33 +32,47 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
             return;
         }
 
+        // for each file entry under the directory
         for (File file : fileList) {
-            String fileName = file.getName();
-            if (fileName.length() <= (8 + 1)) {
-                continue;
-            }
+            try {
+                String fileName = file.getName();
+                // ignore invalid one
+                if (fileName.length() <= (8 + 1)) {
+                    continue;
+                }
 
-            int lastDash = fileName.length() - 9;
-            String realName = fileName.substring(0, lastDash);
-            String chunkID = fileName.substring(lastDash + 1);
-            FileChunk chunk = new FileChunk(realName, Integer.valueOf(chunkID));
+                int lastDash = fileName.length() - 9;
+                String realName = fileName.substring(0, lastDash);
+                String chunkID = fileName.substring(lastDash + 1);
 
-            ArrayList<FileChunk> oneFile = fileChunks.get(realName);
-            if (oneFile == null) {
-                oneFile = new ArrayList<>();
-                fileChunks.put(realName, oneFile);
+                // read data in file
+                FileReader reader = new FileReader(fileName);
+                char[] buffer = new char[FileChunk.FIXED_SIZE];
+                reader.read(buffer, 0, FileChunk.FIXED_SIZE);
+                int actualLength = Helper.charArrayLength(buffer);
+
+                FileChunk chunk = new FileChunk(realName, Integer.valueOf(chunkID), actualLength);
+                // add chunk control block
+                ArrayList<FileChunk> oneFile = fileChunks.get(realName);
+                if (oneFile == null) {
+                    oneFile = new ArrayList<>();
+                    fileChunks.put(realName, oneFile);
+                }
+                oneFile.add(chunk);
+            } catch (java.io.IOException e) {
+                e.printStackTrace();
             }
-            oneFile.add(chunk);
         }
 
         for (Map.Entry<String, ArrayList<FileChunk>> pair : fileChunks.entrySet()) {
+            // chunks are ordered by id
             Collections.sort(pair.getValue());
         }
     }
 
     public void print() {
         for (Map.Entry<String, ArrayList<FileChunk>> entry : fileChunks.entrySet()) {
-            System.out.print(entry.getKey()+" : ");
+            System.out.print(entry.getKey() + " : ");
             for (FileChunk chunk : entry.getValue()) {
                 System.out.print(chunk + " ");
             }

@@ -1,13 +1,15 @@
 import java.io.Serializable;
 
 public class FileChunk implements Comparable<FileChunk>, Serializable {
-    public static final int size = 8192;
+    public static final int FIXED_SIZE = 8192;
     String realFileName;
     int chunkID;
+    int acutualLength;
 
-    public FileChunk(String realFileName, int chunkID) {
+    public FileChunk(String realFileName, int chunkID, int acutualLength) {
         this.realFileName = realFileName;
         this.chunkID = chunkID;
+        this.acutualLength = acutualLength;
     }
 
     public String getChunkName() {

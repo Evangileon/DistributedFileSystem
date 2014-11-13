@@ -114,6 +114,7 @@ public class MetaServer {
 
     /**
      * Retrieve information of all file servers
+     *
      * @param doc XML object
      */
     private void parseXMLToConfigFileServers(Document doc) {
@@ -147,6 +148,7 @@ public class MetaServer {
 
     /**
      * Retrieve all information about meta server
+     *
      * @param serverNode root element node of meta server in XML config file
      */
     private void parseXMLToConfigMetaServer(Node serverNode) {
@@ -181,7 +183,7 @@ public class MetaServer {
             e.printStackTrace();
         }
 
-        Thread headbeatHandleThread = new Thread(new Runnable() {
+        Thread heardbeatHandleThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 while (true) {
@@ -212,8 +214,8 @@ public class MetaServer {
             }
         });
 
-        headbeatHandleThread.setDaemon(true);
-        headbeatHandleThread.start();
+        heardbeatHandleThread.setDaemon(true);
+        heardbeatHandleThread.start();
     }
 
     /**
@@ -260,6 +262,7 @@ public class MetaServer {
     /**
      * Search the remote hostname of new accepted socket on configuration files, to identify
      * the heartbeat connection.
+     *
      * @param fileServerSock the newly accepted socket by heartbeat server socket
      * @return the id of the file server server socket
      */
@@ -298,7 +301,7 @@ public class MetaServer {
                 }
 
                 for (FileChunk fileChunk : fileChunks) {
-                    expandToIndex(availableMap, fileChunk.chunkID);
+                    Helper.expandToIndex(availableMap, fileChunk.chunkID);
                     availableMap.set(fileChunk.chunkID, false);
                 }
             }
@@ -325,6 +328,7 @@ public class MetaServer {
 
     /**
      * File server heartbeat fail one time
+     *
      * @param id of file server
      */
     private void fileServerHeartbeatFailOneTime(int id) {
@@ -365,10 +369,10 @@ public class MetaServer {
                 for (Map.Entry<Integer, Long> pair : fileServerTouch.entrySet()) {
                     int id = pair.getKey();
                     long lastTouch = pair.getValue();
-                    if (lastTouch < 0) {
-                        // never touch
-
-                    }
+//                    if (lastTouch < 0) {
+//                        // never touch
+//
+//                    }
 
                     long diff = currentTime - lastTouch;
                     if (diff > 5000) {
@@ -384,7 +388,8 @@ public class MetaServer {
      * upon received heartbeat message, meta server need to update
      * the information according to file chunk information carried
      * by heartbeat
-     * @param id file server identified by identifyHeartbeatConnection
+     *
+     * @param id       file server identified by identifyHeartbeatConnection
      * @param fileInfo heartbeat carrying file chunk information
      */
     private void synchronizeWithMap(int id, FileInfo fileInfo) {
@@ -407,7 +412,7 @@ public class MetaServer {
             // synchronize
             synchronized (chunksOnThisServer) {
                 for (FileChunk fileChunk : fileChunks) {
-                    expandToIndex(chunksOnThisServer, fileChunk.chunkID);
+                    Helper.expandToIndex(chunksOnThisServer, fileChunk.chunkID);
                     chunksOnThisServer.set(fileChunk.chunkID, id);
                 }
             }
@@ -424,7 +429,7 @@ public class MetaServer {
 
             synchronized (availableMap) {
                 for (FileChunk fileChunk : fileChunks) {
-                    expandToIndex(availableMap, fileChunk.chunkID);
+                    Helper.expandToIndex(availableMap, fileChunk.chunkID);
                     availableMap.set(fileChunk.chunkID, true);
                 }
             }
@@ -445,6 +450,7 @@ public class MetaServer {
      * @param fileInfo transited from file servers
      */
     private void releasePendingChunks(int id, FileInfo fileInfo) {
+
         for (Map.Entry<String, ArrayList<FileChunk>> fileChunksInFileServer : fileInfo) {
             String fileName = fileChunksInFileServer.getKey();
             if (!pendingFileChunks.containsKey(fileName)) {
@@ -458,27 +464,17 @@ public class MetaServer {
 
                 // check whether ID equal to keep consistent
                 if (pendingChunks.containsKey(chunkID) && pendingChunks.get(chunkID) == id) {
+                    // remove from specified file pending list
                     pendingChunks.remove(chunkID);
+                    // remove entry in global pending list if specified file pending list is zero
+                    if (pendingChunks.size() == 0) {
+                        pendingFileChunks.remove(fileName);
+                    }
                 }
             }
         }
     }
 
-    /**
-     * Because ArrayList list has a stupid property: it can not access the object which
-     * exceed current size. Some elements need to be append to index
-     * @param list list to be expanded
-     * @param index the index you want to access
-     * @param <T> Object
-     */
-    @SuppressWarnings("unchecked")
-    public static <T> void expandToIndex(List<T> list, int index) {
-        int size = list.size();
-
-        for (int i = 0; i < (index + 1 - size); i++) {
-            list.add((T) new Object());
-        }
-    }
 
     /**
      * Thread to handle single heartbeat connection
@@ -534,7 +530,6 @@ public class MetaServer {
                     break;
                 }
             }
-            System.out.println("Exit meta server heartbeat receive loop");
 
             try {
                 fileServerSock.close();
@@ -572,9 +567,6 @@ public class MetaServer {
                 ResponseEnvelop response = new ResponseEnvelop(request);
                 System.out.println("Response UUID: " + response.uuid.toString());
 
-                ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
-                output.writeObject(response);
-
                 if (command.length() != 1) {
                     return;
                 }
@@ -584,7 +576,19 @@ public class MetaServer {
                 switch (cmd) {
                     case 'r':
                         // TODO read file
-
+                        if (request.params.size() != 2) {
+                            response.setError(FileClient.INVALID_COMMAND);
+                            break;
+                        }
+                        Integer offset = Integer.valueOf(request.params.get(0));
+                        Integer length = Integer.valueOf(request.params.get(1));
+                        LinkedList<Integer> chunkList = new LinkedList<>();
+                        int error = read(fileName, offset, length, chunkList);
+                        if (error != 0) {
+                            response.setError(error);
+                        } else {
+                            response.setChunksToScan(chunkList);
+                        }
                         break;
                     case 'a':
                         // TODO append file
@@ -596,8 +600,12 @@ public class MetaServer {
                         // TODO delete file
                         break;
                     default:
+                        response.setError(FileClient.INVALID_COMMAND);
                         System.out.println("Unknown command: " + cmd);
                 }
+
+                ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
+                output.writeObject(response);
 
                 clientSock.close();
 
@@ -607,6 +615,81 @@ public class MetaServer {
 
             System.out.println("Exit response to: " + clientSock.getInetAddress().toString());
         }
+    }
+
+    public int read(String fileName, int offset, int length, List<Integer> chunkList) {
+        // number of full chunks before the offset.
+        int offsetBelongsToWhichChunk = offset / FileChunk.FIXED_SIZE;
+        int remnant = offset % FileChunk.FIXED_SIZE;
+        int lastIndex = offset + length - 1;
+        int lastIndexBelongsToWhichChunk = lastIndex / FileChunk.FIXED_SIZE;
+
+        // need to scan this list of chunks
+        LinkedList<Integer> chunksNeedToScan = new LinkedList<>();
+        for (int i = offsetBelongsToWhichChunk; i <= lastIndexBelongsToWhichChunk; i++) {
+            chunksNeedToScan.add(i);
+        }
+
+        // check pending list
+        HashMap<Integer, Integer> pending = pendingFileChunks.get(fileName);
+        if (pending != null) {
+            for (Integer chunkID : chunksNeedToScan) {
+                if (pending.containsKey(chunkID)) {
+                    return FileClient.CHUNK_IN_PENGING;
+                }
+            }
+        }
+
+        // check availability
+        List<Boolean> avails = fileChunkAvailableMap.get(fileName);
+        if (avails == null) {
+            return FileClient.FILE_NOT_EXIST;
+        }
+        // check whether demanded chunk exists, in other word, demanded length not exceed real length
+        if (lastIndexBelongsToWhichChunk >= avails.size()) {
+            return FileClient.FILE_LENGTH_EXCEED;
+        }
+        for (Integer chunkID : chunksNeedToScan) {
+            if (!avails.get(chunkID)) {
+                return FileClient.CHUNK_NOT_AVAILABLE;
+            }
+        }
+
+        // get chunk list
+        chunkList.clear();
+        chunkList.addAll(chunksNeedToScan);
+
+        return 0;
+    }
+
+    /**
+     * Check whether last chunk of file is full
+     *
+     * @param fileName file
+     * @return 0 if is full, otherwise the remaining space, -1 if not available, -2 if in pending
+     */
+    private int checkLastChunkOfFile(String fileName) {
+        if (pendingFileChunks.containsKey(fileName)) {
+            return FileClient.CHUNK_IN_PENGING;
+        }
+
+        List<Boolean> avails = fileChunkAvailableMap.get(fileName);
+        boolean availableOfLast = avails.get(avails.size() - 1);
+        if (!availableOfLast) {
+            return FileClient.CHUNK_NOT_AVAILABLE;
+        }
+
+        List<Integer> list = fileChunkMap.get(fileName);
+        if (list == null) {
+            return FileClient.FILE_NOT_EXIST;
+        }
+
+        int whereLastChunk = list.get(list.size() - 1);
+        // the chunk you demand is in file server whereLastChunk
+        ArrayList<FileChunk> chunks = fileServerInfoMap.get(whereLastChunk).fileChunks.get(fileName);
+        FileChunk lastChunk = chunks.get(chunks.size() - 1);
+        int actualLength = lastChunk.acutualLength;
+        return FileChunk.FIXED_SIZE - actualLength;
     }
 
     /**

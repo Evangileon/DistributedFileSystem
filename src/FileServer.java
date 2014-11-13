@@ -37,7 +37,7 @@ public class FileServer {
 
     HashMap<Integer, FileServer> allFileServerList;
 
-    public static final int CHUNK_LENGTH = 8192;
+    //public static final int CHUNK_LENGTH = 8192;
 
     public FileServer() {
 
@@ -207,6 +207,7 @@ public class FileServer {
 
     /**
      * Read file chunk from disk
+     *
      * @param chunk chunk controller block
      * @return the data read
      */
@@ -220,11 +221,11 @@ public class FileServer {
         try {
             FileReader reader = new FileReader(filePath);
 
-            char[] buffer = new char[CHUNK_LENGTH];
-            int size = reader.read(buffer, 0, CHUNK_LENGTH);
+            char[] buffer = new char[FileChunk.FIXED_SIZE];
+            int size = reader.read(buffer, 0, FileChunk.FIXED_SIZE);
 
-            if (size != CHUNK_LENGTH) {
-                System.out.println("Chunk size not equals to " + CHUNK_LENGTH);
+            if (size != FileChunk.FIXED_SIZE) {
+                System.out.println("Chunk size not equals to " + FileChunk.FIXED_SIZE);
                 return null;
             }
 
@@ -238,7 +239,8 @@ public class FileServer {
 
     /**
      * Write data in buffer to path specified by file chunk block
-     * @param chunk controller block
+     *
+     * @param chunk  controller block
      * @param buffer buffer to written
      * @return -1 if write fails, otherwise the actual size written
      */
@@ -253,7 +255,7 @@ public class FileServer {
             FileWriter writer = new FileWriter(filePath);
 
             writer.write(buffer, 0, buffer.length);
-            return  buffer.length;
+            return buffer.length;
         } catch (IOException e) {
             e.printStackTrace();
             return -1;
@@ -263,7 +265,8 @@ public class FileServer {
     /**
      * Append data at the end of specified chunk, the size of data can not exceed
      * the remaining space of chunk. (null filled space). If exceed, buffer got truncated
-     * @param chunk to be appended
+     *
+     * @param chunk  to be appended
      * @param buffer data
      * @return -1 if fails, otherwise the actual size of data appended
      */
@@ -281,7 +284,7 @@ public class FileServer {
         int dataLength = Helper.charArrayLength(data);
 
         // fill the data with content in buffer
-        int actualLengthAppended = Math.min(CHUNK_LENGTH - dataLength, buffer.length);
+        int actualLengthAppended = Math.min(FileChunk.FIXED_SIZE - dataLength, buffer.length);
         System.arraycopy(buffer, 0, data, dataLength, actualLengthAppended);
 
         // overwrite old chunk
