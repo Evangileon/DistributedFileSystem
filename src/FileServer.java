@@ -252,7 +252,15 @@ public class FileServer {
         String filePath = storageDir + "/" + chunk.getChunkName();
 
         try {
-            FileWriter writer = new FileWriter(filePath);
+            File file = new File(filePath);
+            file.mkdirs();
+            file.createNewFile();
+            FileWriter writer = new FileWriter(file);
+
+            if (buffer == null) {
+                // create empty file
+                return 0;
+            }
 
             writer.write(buffer, 0, buffer.length);
             return buffer.length;

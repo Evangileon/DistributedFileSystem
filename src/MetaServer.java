@@ -50,7 +50,7 @@ public class MetaServer {
     int timeoutMillis = 5000;
 
     // store necessary information about file servers
-    HashMap<Integer, FileServer> allFileServerList;
+    TreeMap<Integer, FileServer> allFileServerList;
 
     // latest time the file server with id send heartbeat to meta server
     final HashMap<Integer, Long> fileServerTouch = new HashMap<>();
@@ -86,7 +86,7 @@ public class MetaServer {
      * @param filename xml
      */
     private void parseXML(String filename) {
-        allFileServerList = new HashMap<>();
+        allFileServerList = new TreeMap<>();
 
         File fXmlFile = new File(filename);
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
@@ -572,6 +572,11 @@ public class MetaServer {
                 }
 
                 char cmd = command.charAt(0);
+                int error = 0;
+                Integer offset;
+                Integer length;
+                LinkedList<Integer> chunkList = new LinkedList<>();
+                LinkedList<Integer> chunkLocationList = new LinkedList<>();
 
                 switch (cmd) {
                     case 'r':
@@ -580,30 +585,45 @@ public class MetaServer {
                             response.setError(FileClient.INVALID_COMMAND);
                             break;
                         }
-                        Integer offset = Integer.valueOf(request.params.get(0));
-                        Integer length = Integer.valueOf(request.params.get(1));
-                        LinkedList<Integer> chunkList = new LinkedList<>();
-                        int error = read(fileName, offset, length, chunkList);
-                        if (error != 0) {
-                            response.setError(error);
-                        } else {
-                            response.setChunksToScan(chunkList);
-                        }
+                        offset = Integer.valueOf(request.params.get(0));
+                        length = Integer.valueOf(request.params.get(1));
+
+                        error = read(fileName, offset, length, chunkList, chunkLocationList);
+
                         break;
                     case 'a':
                         // TODO append file
                         break;
                     case 'w':
                         // TODO write file
+                        if (request.params.size() != 1) {
+                            response.setError(FileClient.INVALID_COMMAND);
+                            break;
+                        }
+                        if (request.data == null) {
+                            response.setError(FileClient.SUCCESS);
+                            break;
+                        }
+                        length = Integer.valueOf(request.params.get(0));
+
+                        error = write(fileName, length, chunkList, chunkLocationList);
+
                         break;
                     case 'd':
                         // TODO delete file
                         break;
                     default:
+                        error = 0;
                         response.setError(FileClient.INVALID_COMMAND);
                         System.out.println("Unknown command: " + cmd);
                 }
 
+                if (error != 0) {
+                    response.setError(error);
+                } else {
+                    response.setChunksToScan(chunkList);
+                    response.setChunksLocation(chunkLocationList);
+                }
                 ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
                 output.writeObject(response);
 
@@ -617,10 +637,20 @@ public class MetaServer {
         }
     }
 
-    public int read(String fileName, int offset, int length, List<Integer> chunkList) {
+    /**
+     * Read file from meta data
+     * @param fileName file to read
+     * @param offset first start index inclusive
+     * @param length to read
+     * @param chunkList to store chunks to scan
+     * @param chunkLocationList to store location of chunks correspondent to chunkList
+     * @return error code
+     */
+    public int read(String fileName, int offset, int length, List<Integer> chunkList, List<Integer> chunkLocationList) {
+        chunkList.clear();
+        chunkLocationList.clear();
         // number of full chunks before the offset.
         int offsetBelongsToWhichChunk = offset / FileChunk.FIXED_SIZE;
-        int remnant = offset % FileChunk.FIXED_SIZE;
         int lastIndex = offset + length - 1;
         int lastIndexBelongsToWhichChunk = lastIndex / FileChunk.FIXED_SIZE;
 
@@ -655,11 +685,14 @@ public class MetaServer {
             }
         }
 
-        // get chunk list
-        chunkList.clear();
+        // get chunk list and location
         chunkList.addAll(chunksNeedToScan);
+        List<Integer> locations = fileChunkMap.get(fileName);
+        for (Integer chunkID : chunkList) {
+            chunkLocationList.add(locations.get(chunkID));
+        }
 
-        return 0;
+        return FileClient.SUCCESS;
     }
 
     /**
@@ -690,6 +723,43 @@ public class MetaServer {
         FileChunk lastChunk = chunks.get(chunks.size() - 1);
         int actualLength = lastChunk.acutualLength;
         return FileChunk.FIXED_SIZE - actualLength;
+    }
+
+    public int write(String fileName, int length, List<Integer> chunkList, List<Integer> chunkLocationList) {
+
+        chunkList.clear();
+        chunkLocationList.clear();
+
+        int lastChunk = (length - 1) / FileChunk.FIXED_SIZE;
+        Random random = new Random();
+
+        Integer[] idArray = new Integer[allFileServerList.size()];
+        idArray = allFileServerList.keySet().toArray(idArray);
+
+        for (int i = 0; i <= lastChunk; i++) {
+            int location = random.nextInt(allFileServerList.size());
+            chunkList.add(i);
+            chunkLocationList.add(idArray[location]);
+        }
+
+        // create first chunk, it's empty, and will be filled by client
+        FileServer fileServer = allFileServerList.get(chunkLocationList.get(0));
+        try {
+            Socket requestSock = new Socket(fileServer.hostname, fileServer.requestFilePort);
+            ObjectOutputStream output = new ObjectOutputStream(requestSock.getOutputStream());
+            RequestEnvelop request = new RequestEnvelop("w", fileName);
+            request.params.add(Integer.toString(Math.min(FileChunk.FIXED_SIZE, length)));
+            output.writeObject(request);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return FileClient.FILE_SERVER_NOT_AVAILABLE;
+        }
+
+        return FileClient.SUCCESS;
+    }
+
+    public int append(String fileName, int length, List<Integer> chunksAffected) {
+        return 0;
     }
 
     /**
