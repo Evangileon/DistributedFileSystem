@@ -581,7 +581,8 @@ public class MetaServer {
         System.out.println("File Chunk Map:");
         for (Map.Entry<String, List<Integer>> pair : fileChunkMap.entrySet()) {
             System.out.printf("%s: ", pair.getKey());
-            for (Integer id : pair.getValue()) {
+            List<Integer> list = pair.getValue();
+            for (Integer id : list) {
                 System.out.print(id + ", ");
             }
             System.out.println();
