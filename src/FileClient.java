@@ -8,8 +8,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.*;
 import java.net.Socket;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.*;
 
 
 public class FileClient {
@@ -47,7 +46,7 @@ public class FileClient {
         }
 
         RequestEnvelop request = new RequestEnvelop(params[0], params[1]);
-        request.addParam(Arrays.copyOfRange(params, 2, params.length - 1));
+        request.addParam(Arrays.copyOfRange(params, 2, params.length));
 
         int error = sendRequestToMeta(request, clientSock);
         if (error < 0) {
@@ -67,10 +66,112 @@ public class FileClient {
         }
 
         //System.out.println("Response UUID: " + response.uuid.toString());
+        int chunkID;
+        int offset;
+        int length;
+        String fileName;
 
+        switch (response.requestCopy.cmd.charAt(0)) {
+            case 'r':
+                fileName = response.requestCopy.fileName;
+                offset = Integer.valueOf(response.requestCopy.params.get(0));
+                length = Integer.valueOf(response.requestCopy.params.get(1));
+
+                String data = readData(fileName, offset, length, response.chunksToScan, response.chunksLocation);
+                break;
+            case 'w':
+
+                break;
+            case 'a':
+
+                break;
+            default:
+        }
 
 
         return 0;
+    }
+
+    /**
+     * Read all data from chunk
+     * @param fileServerID file server ID
+     * @param fileName file name demanded
+     * @param chunkID chunk ID for the file
+     * @return data if success, otherwise null
+     */
+    private char[] readChunkData(int fileServerID, String fileName, int chunkID) {
+        return readChunkData(fileServerID, fileName, chunkID, 0, FileChunk.FIXED_SIZE);
+    }
+
+    /**
+     * Read data from chunk
+     * @param fileServerID file server ID
+     * @param fileName file name demanded
+     * @param chunkID chunk ID for the file
+     * @param offset offset inside the chunk
+     * @param length data length
+     * @return data if success, otherwise null
+     */
+    private char[] readChunkData(int fileServerID, String fileName, int chunkID, int offset, int length) {
+        FileServer fileServer = allFileServerList.get(fileServerID);
+        try {
+            Socket fileSock = new Socket(allFileServerList.get(fileServerID).hostname, fileServer.requestFilePort);
+            RequestEnvelop request = new RequestEnvelop("r", fileName);
+            request.addParam(Integer.toString(chunkID));
+            request.addParam(Integer.toString(offset));
+            request.addParam(Integer.toString(length));
+
+            ObjectOutputStream output = new ObjectOutputStream(fileSock.getOutputStream());
+            output.writeObject(request);
+            output.flush();
+
+            ObjectInputStream input = new ObjectInputStream(fileSock.getInputStream());
+            ResponseEnvelop response = (ResponseEnvelop) input.readObject();
+
+            return response.data;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    /**
+     * Read data from file servers according information in returned response
+     * @param fileName demanded file
+     * @param offset offset in first chunk of returned
+     * @param length data length
+     * @param chunksToScan chunk list need to retrieve
+     * @param chunksLocation file server ID
+     * @return concatenated data
+     */
+    public String readData(String fileName, int offset, int length,  List<Integer> chunksToScan, List<Integer> chunksLocation) {
+        StringBuffer result = new StringBuffer();
+
+        offset = offset % FileChunk.FIXED_SIZE;
+
+        Iterator<Integer> chunkItor = chunksToScan.iterator();
+        Iterator<Integer> locationItor = chunksLocation.iterator();
+
+        while (chunkItor.hasNext()) {
+            int chunkID = chunkItor.next();
+            int location = locationItor.next();
+
+            int chunkRemain = FileChunk.FIXED_SIZE - offset;
+            if (length >= chunkRemain) {
+                result.append(readChunkData(location, fileName, chunkID, offset, chunkRemain));
+            } else {
+                result.append(readChunkData(location, fileName, chunkID, offset, length));
+            }
+            length -= FileChunk.FIXED_SIZE;
+            offset = 0;
+        }
+
+        return result.toString();
     }
 
     /**

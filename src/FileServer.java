@@ -17,6 +17,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 
@@ -153,7 +154,7 @@ public class FileServer {
     /**
      * Create a new thread to send file meta data along with heartbeat message
      */
-    public void heartbeatToMetaServer() {
+    private void heartbeatToMetaServer() {
         System.out.println("Meta server heartbeat: " + metaServer.hostname);
         System.out.println("Meta server heartbeat: " + metaServer.metaServerAddress.toString() + ":" + metaServer.receiveHeartbeatPort);
 
@@ -217,7 +218,7 @@ public class FileServer {
     /**
      * Create a thread to listen to request from clients or meta server
      */
-    public void prepareToReceiveRequest() {
+    private void prepareToReceiveRequest() {
         try {
             requestSock = new ServerSocket(requestFilePort);
         } catch (IOException e) {
@@ -271,14 +272,18 @@ public class FileServer {
                     String cmd = request.cmd;
                     String fileName = request.fileName;
                     int chunkID;
+                    int offset;
+                    int length;
                     int ret;
 
                     switch (cmd.charAt(0)) {
                         case 'r':
                             chunkID = Integer.valueOf(request.params.get(0));
+                            offset = Integer.valueOf(request.params.get(1));
+                            length = Integer.valueOf(request.params.get(2));
                             FileChunk chunk = getChunk(fileName, chunkID);
                             char[] data = readChunk(chunk);
-                            response.setData(data);
+                            response.setData(Arrays.copyOfRange(data, offset, offset + length));
                             break;
                         case 'w':
                             chunkID = Integer.valueOf(request.params.get(0));
@@ -340,7 +345,7 @@ public class FileServer {
      * @param chunk chunk controller block
      * @return the data read
      */
-    public char[] readChunk(FileChunk chunk) {
+    private char[] readChunk(FileChunk chunk) {
         if (chunk == null) {
             return null;
         }
@@ -373,7 +378,7 @@ public class FileServer {
      * @param buffer buffer to written
      * @return -1 if write fails, otherwise the actual size written
      */
-    public int writeChunk(FileChunk chunk, char[] buffer) {
+    private int writeChunk(FileChunk chunk, char[] buffer) {
         if (chunk == null) {
             return -1;
         }
