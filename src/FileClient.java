@@ -204,6 +204,8 @@ public class FileClient {
             ObjectInputStream input = new ObjectInputStream(clientSock.getInputStream());
 
             response = (ResponseEnvelop) input.readObject();
+
+            input.close();
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
