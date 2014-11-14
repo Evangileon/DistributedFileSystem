@@ -238,7 +238,6 @@ public class MetaServer {
                 while (true) {
                     try {
                         Socket clientSock = receiveRequestSock.accept();
-
                         System.out.println("Receive request from: " + clientSock.getInetAddress().toString());
 
                         ResponseFileRequestEntity responseFileRequestEntity = new ResponseFileRequestEntity(clientSock);
@@ -321,6 +320,10 @@ public class MetaServer {
         }
     }
 
+    /**
+     * File server heartbeat delivered to meta
+     * @param id of file server
+     */
     private void fileServerHeartbeatTouch(int id) {
         // set latest time that file server touch to current time
         Long currentTime = System.currentTimeMillis();

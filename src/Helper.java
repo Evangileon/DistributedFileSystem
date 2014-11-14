@@ -8,6 +8,10 @@ public class Helper {
      * @return non-null length
      */
     public static int charArrayLength(char[] buffer) {
+        if (buffer == null) {
+            return 0;
+        }
+
         for (int i = buffer.length - 1; i >= 0; i--) {
             if (buffer[i] != 0) {
                 return i + 1;

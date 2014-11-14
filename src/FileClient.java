@@ -13,7 +13,7 @@ import java.util.HashMap;
 
 
 public class FileClient {
-    //ArrayList<Socket> socketToServers;
+    
     public static final int SUCCESS = 0;
     public static final int CHUNK_NOT_AVAILABLE = -1;
     public static final int CHUNK_IN_PENDING = -2;
@@ -71,6 +71,12 @@ public class FileClient {
         return 0;
     }
 
+    /**
+     * Send request to meta server
+     * @param request already initialized and set
+     * @param clientSock established socket
+     * @return 0 if success, -1 if fail
+     */
     public int sendRequestToMeta(RequestEnvelop request, Socket clientSock) {
         try {
             ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
@@ -84,6 +90,11 @@ public class FileClient {
         return 0;
     }
 
+    /**
+     * Receive response for latest request
+     * @param clientSock established socket
+     * @return response body
+     */
     public ResponseEnvelop receiveResponseFromMeta(Socket clientSock) {
         ResponseEnvelop response = null;
         try {
@@ -128,6 +139,10 @@ public class FileClient {
         }
     }
 
+    /**
+     * Retrieve information about all file servers
+     * @param doc XML
+     */
     private void parseXMLToConfigFileServers(Document doc) {
         Node fileServers = doc.getElementsByTagName("fileServers").item(0);
         NodeList fileServerList = fileServers.getChildNodes();
@@ -157,6 +172,10 @@ public class FileClient {
         }
     }
 
+    /**
+     * Get hostname and port of meta
+     * @param serverNode element node for meta
+     */
     private void parseXMLToConfigMetaServer(Node serverNode) {
         NodeList serverConfig = serverNode.getChildNodes();
 

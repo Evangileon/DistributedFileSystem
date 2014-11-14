@@ -13,8 +13,11 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.*;
 import java.io.*;
 import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 
 
@@ -30,10 +33,13 @@ public class FileServer {
 
     MetaServer metaServer;
 
-    FileInfo fileInfo;
+    final FileInfo fileInfo = new FileInfo();
     String storageDir;
 
+    // socket to send heartbeat
     Socket heartbeatSock;
+    // socket to listen to request
+    ServerSocket requestSock;
 
     HashMap<Integer, FileServer> allFileServerList;
 
@@ -144,6 +150,9 @@ public class FileServer {
         }
     }
 
+    /**
+     * Create a new thread to send file meta data along with heartbeat message
+     */
     public void heartbeatToMetaServer() {
         System.out.println("Meta server heartbeat: " + metaServer.hostname);
         System.out.println("Meta server heartbeat: " + metaServer.metaServerAddress.toString() + ":" + metaServer.receiveHeartbeatPort);
@@ -183,7 +192,6 @@ public class FileServer {
                 thread.start();
                 //##############################################################
 
-
                 try {
                     thread.join();
                     Thread.sleep(5000);
@@ -204,6 +212,126 @@ public class FileServer {
                 }
             }
         }
+    }
+
+    /**
+     * Create a thread to listen to request from clients or meta server
+     */
+    public void prepareToReceiveRequest() {
+        try {
+            requestSock = new ServerSocket(requestFilePort);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        final Thread requestHandleRequest = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                // note that meta server can also be requester
+                while (true) {
+                    try {
+                        Socket clientSock = requestSock.accept();
+                        System.out.println("Receive request from: " + clientSock.getInetAddress().toString());
+
+                        ResponseRequestEntity responseRequestEntity = new ResponseRequestEntity(clientSock);
+                        Thread threadResponse = new Thread(responseRequestEntity);
+                        threadResponse.setDaemon(true);
+                        threadResponse.run();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+
+        requestHandleRequest.setDaemon(true);
+        requestHandleRequest.start();
+    }
+
+    /**
+     * Thread to handle request
+     */
+    class ResponseRequestEntity implements Runnable {
+
+        Socket clientSock;
+
+        public ResponseRequestEntity(Socket clientSock) {
+            this.clientSock = clientSock;
+        }
+
+        @Override
+        public void run() {
+            while (true) {
+                try {
+                    ObjectInputStream input = new ObjectInputStream(clientSock.getInputStream());
+                    RequestEnvelop request = (RequestEnvelop) input.readObject();
+
+                    ResponseEnvelop response = new ResponseEnvelop(request);
+
+                    String cmd = request.cmd;
+                    String fileName = request.fileName;
+                    int chunkID;
+                    int ret;
+
+                    switch (cmd.charAt(0)) {
+                        case 'r':
+                            chunkID = Integer.valueOf(request.params.get(0));
+                            FileChunk chunk = getChunk(fileName, chunkID);
+                            char[] data = readChunk(chunk);
+                            response.setData(data);
+                            break;
+                        case 'w':
+                            chunkID = Integer.valueOf(request.params.get(0));
+                            int actualLength = Helper.charArrayLength(request.data);
+                            FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
+                            writeChunk(chunk1, request.data);
+                            addToMetaData(chunk1);
+                            break;
+                        case 'a':
+                            chunkID = Integer.valueOf(request.params.get(0));
+                            FileChunk chunk2 = getChunk(fileName, chunkID);
+                            FileChunk oldChunk = getChunk(fileName, chunkID);
+                            ret = appendChunk(chunk2, request.data);
+                            if (ret < 0 || ret != request.data.length) {
+                                response.setError(FileClient.FILE_LENGTH_EXCEED);
+                                break;
+                            }
+                            chunk2.acutualLength = oldChunk.acutualLength + ret;
+                            updateMetaData(chunk2);
+                            break;
+                        default:
+                            System.out.println("Unknown command");
+                            response.setError(FileClient.INVALID_COMMAND);
+                    }
+
+                    ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
+                    output.writeObject(response);
+                    output.flush();
+
+                } catch (IOException | ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    /**
+     * Get file chunk by file name and ID
+     * @param fileName real file
+     * @param chunkID ID
+     * @return chunk if found, otherwise null
+     */
+    private FileChunk getChunk(String fileName, int chunkID) {
+        ArrayList<FileChunk> chunkMap = fileInfo.fileChunks.get(fileName);
+        if (chunkMap == null) {
+            return null;
+        }
+        for (FileChunk chunk : chunkMap) {
+            if (chunk.chunkID == chunkID) {
+                return chunk;
+            }
+        }
+        return null;
     }
 
     /**
@@ -254,8 +382,16 @@ public class FileServer {
 
         try {
             File file = new File(filePath);
-            file.mkdirs();
-            file.createNewFile();
+            boolean bMk = file.mkdirs();
+            boolean bCr = file.createNewFile();
+
+            if (!bMk) {
+                System.out.println();
+            }
+            if (!bCr) {
+                System.out.println("File " + filePath + " not created");
+            }
+
             FileWriter writer = new FileWriter(file);
 
             if (buffer == null) {
@@ -268,6 +404,47 @@ public class FileServer {
         } catch (IOException e) {
             e.printStackTrace();
             return -1;
+        }
+    }
+
+    /**
+     * Add chunk information to meta data
+     * @param chunk control block
+     */
+    private void addToMetaData(FileChunk chunk) {
+        if (chunk == null) {
+            return;
+        }
+
+        synchronized (fileInfo) {
+            ArrayList<FileChunk> chunkMap = fileInfo.fileChunks.get(chunk.realFileName);
+            if (chunkMap == null) {
+                chunkMap = new ArrayList<>();
+                fileInfo.fileChunks.put(chunk.realFileName, chunkMap);
+            }
+            chunkMap.add(chunk);
+            Collections.sort(chunkMap);
+        }
+    }
+
+    /**
+     * Update the meta data, mainly update actual length
+     * @param chunk control block
+     */
+    public void updateMetaData(FileChunk chunk) {
+        if (chunk == null) {
+            return;
+        }
+
+        ArrayList<FileChunk> list = fileInfo.fileChunks.get(chunk.realFileName);
+        if (list == null) {
+            return;
+        }
+        for (FileChunk ck : list) {
+            if (ck.chunkID == chunk.chunkID) {
+                ck.acutualLength = chunk.acutualLength;
+                return;
+            }
         }
     }
 
@@ -306,7 +483,7 @@ public class FileServer {
      * Run this before any procedure
      */
     private void initialize() {
-        fileInfo = new FileInfo(storageDir);
+        fileInfo.setFileDir(this.storageDir);
         fileInfo.recoverFileInfoFromDisk();
         metaServer.resolveAddress();
         resolveAddress();
@@ -319,6 +496,8 @@ public class FileServer {
         initialize();
 
         heartbeatToMetaServer();
+
+        prepareToReceiveRequest();
     }
 
     public static void main(String[] args) {
