@@ -340,11 +340,11 @@ public class MetaServer {
         }
 
         int newTimes = times + 1;
-        System.out.println("ID = " + id + " fail total time: " + times);
-        if (times >= 3) { // heartbeat fail 3 times means file server down
+        System.out.println("ID = " + id + " fail total time: " + newTimes);
+        if (newTimes >= 3) { // heartbeat fail 3 times means file server down
             System.out.println("ID = " + id + " is down");
             fileServerFail(id);
-            times = 0;
+            newTimes = 0;
         }
         synchronized (fileServerFailTimes) {
             fileServerFailTimes.put(id, newTimes);
@@ -385,7 +385,6 @@ public class MetaServer {
                     } else {
                         // touched within 5 seconds
                         synchronized (fileServerFailTimes) {
-                            System.out.println("Touched");
                             fileServerFailTimes.put(id, 0);
                         }
                     }
