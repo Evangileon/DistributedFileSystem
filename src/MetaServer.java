@@ -44,7 +44,7 @@ public class MetaServer {
     final Map<String, Map<Integer, Integer>> pendingFileChunks = Collections.synchronizedMap(new HashMap<String, Map<Integer, Integer>>());
 
     // fail times of heartbeat correspondent to id
-    final Map<Integer, Integer> fileServerFailTimes = Collections.synchronizedMap(new HashMap<Integer, Integer>());
+    //final Map<Integer, Integer> fileServerFailTimes = Collections.synchronizedMap(new HashMap<Integer, Integer>());
 
     // store necessary information about file servers
     final TreeMap<Integer, FileServer> allFileServerList = new TreeMap<>();
@@ -346,8 +346,8 @@ public class MetaServer {
             fileServerFail(id);
             newTimes = 0;
         }
-        synchronized (fileServerFailTimes) {
-            fileServerFailTimes.put(id, newTimes);
+        synchronized (fileServerHeartbeatFailTimes) {
+            fileServerHeartbeatFailTimes.put(id, newTimes);
         }
     }
 
@@ -384,8 +384,8 @@ public class MetaServer {
                         fileServerHeartbeatFailOneTime(id);
                     } else {
                         // touched within 5 seconds
-                        synchronized (fileServerFailTimes) {
-                            fileServerFailTimes.put(id, 0);
+                        synchronized (fileServerHeartbeatFailTimes) {
+                            fileServerHeartbeatFailTimes.put(id, 0);
                         }
                     }
                 }
@@ -545,7 +545,7 @@ public class MetaServer {
             this.fileServerSock = fileServerSock;
             fileServerSock.getInetAddress();
 
-            fileServerFailTimes.put(id, 0);
+            fileServerHeartbeatFailTimes.put(id, 0);
 
             try {
                 fileServerSock.setSoTimeout(timeoutMillis);
