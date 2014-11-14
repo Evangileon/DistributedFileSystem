@@ -66,7 +66,9 @@ public class FileClient {
             return CAUSAL_ORDERING_VIOLATED;
         }
 
-        System.out.println("Response UUID: " + response.uuid.toString());
+        //System.out.println("Response UUID: " + response.uuid.toString());
+
+
 
         return 0;
     }

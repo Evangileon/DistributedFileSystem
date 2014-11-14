@@ -291,20 +291,22 @@ public class MetaServer {
         synchronized (fileChunkAvailableMap) {
             FileInfo fileInfo = fileServerInfoMap.get(id);
 
-            for (Map.Entry<String, ArrayList<FileChunk>> pair : fileInfo) {
-                String fileName = pair.getKey();
-                ArrayList<FileChunk> fileChunks = pair.getValue();
+            if (fileInfo != null) {
+                for (Map.Entry<String, ArrayList<FileChunk>> pair : fileInfo) {
+                    String fileName = pair.getKey();
+                    ArrayList<FileChunk> fileChunks = pair.getValue();
 
-                List<Boolean> availableMap;
-                availableMap = fileChunkAvailableMap.get(fileName);
-                if (availableMap == null) {
-                    availableMap = new ArrayList<>();
-                    fileChunkAvailableMap.put(fileName, availableMap);
-                }
+                    List<Boolean> availableMap;
+                    availableMap = fileChunkAvailableMap.get(fileName);
+                    if (availableMap == null) {
+                        availableMap = new ArrayList<>();
+                        fileChunkAvailableMap.put(fileName, availableMap);
+                    }
 
-                for (FileChunk fileChunk : fileChunks) {
-                    Helper.expandToIndexBoolean(availableMap, fileChunk.chunkID);
-                    availableMap.set(fileChunk.chunkID, false);
+                    for (FileChunk fileChunk : fileChunks) {
+                        Helper.expandToIndexBoolean(availableMap, fileChunk.chunkID);
+                        availableMap.set(fileChunk.chunkID, false);
+                    }
                 }
             }
         }
