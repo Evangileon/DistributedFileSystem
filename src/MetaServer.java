@@ -339,7 +339,7 @@ public class MetaServer {
             return;
         }
 
-        times = times + 1;
+        int newTimes = times + 1;
         System.out.println("ID = " + id + " fail total time: " + times);
         if (times >= 3) { // heartbeat fail 3 times means file server down
             System.out.println("ID = " + id + " is down");
@@ -347,7 +347,7 @@ public class MetaServer {
             times = 0;
         }
         synchronized (fileServerFailTimes) {
-            fileServerFailTimes.put(id, times);
+            fileServerFailTimes.put(id, newTimes);
         }
     }
 
@@ -376,7 +376,7 @@ public class MetaServer {
                     int id = pair.getKey();
                     long lastTouch = pair.getValue();
 
-                    System.out.println(String.format("id = %d, %s = %d, %s = %d", id, "CurrenTime", currentTime, "LastTouch", lastTouch));
+                    //System.out.println(String.format("id = %d, %s = %d, %s = %d", id, "CurrenTime", currentTime, "LastTouch", lastTouch));
 
                     long diff = currentTime - lastTouch;
                     if (diff > 5000) {
@@ -385,6 +385,7 @@ public class MetaServer {
                     } else {
                         // touched within 5 seconds
                         synchronized (fileServerFailTimes) {
+                            System.out.println("Touched");
                             fileServerFailTimes.put(id, 0);
                         }
                     }
@@ -546,7 +547,6 @@ public class MetaServer {
             fileServerSock.getInetAddress();
 
             fileServerFailTimes.put(id, 0);
-
 
             try {
                 fileServerSock.setSoTimeout(timeoutMillis);
