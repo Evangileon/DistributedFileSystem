@@ -643,7 +643,6 @@ public class MetaServer {
 
                 ObjectInputStream input = new ObjectInputStream(clientSock.getInputStream());
                 RequestEnvelop request = (RequestEnvelop) input.readObject();
-                input.close();
 
                 String command = request.cmd;
                 String fileName = request.fileName;
@@ -717,7 +716,6 @@ public class MetaServer {
                 output.writeObject(response);
                 output.flush();
                 output.close();
-                clientSock.close();
 
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
@@ -725,6 +723,7 @@ public class MetaServer {
 
             System.out.println("Exit response to: " + clientSock.getInetAddress().toString());
         }
+
     }
 
     /**
