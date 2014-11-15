@@ -128,10 +128,10 @@ public class FileClient {
             ObjectOutputStream output = new ObjectOutputStream(fileSock.getOutputStream());
             output.writeObject(request);
             output.flush();
-            output.close();
 
             ObjectInputStream input = new ObjectInputStream(fileSock.getInputStream());
             ResponseEnvelop response = (ResponseEnvelop) input.readObject();
+
             input.close();
 
             fileSock.close();

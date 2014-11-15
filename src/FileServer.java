@@ -224,7 +224,9 @@ public class FileServer {
             e.printStackTrace();
         }
 
-        final Thread requestHandleRequest = new Thread(new Runnable() {
+        System.out.println("Request listen port: " + requestSock.getInetAddress().toString());
+
+        Thread requestHandleRequest = new Thread(new Runnable() {
             @Override
             public void run() {
                 // note that meta server can also be requester
