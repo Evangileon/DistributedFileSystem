@@ -239,7 +239,7 @@ public class FileServer {
             e.printStackTrace();
         }
 
-        System.out.println("Request listen port: " + requestSock.getInetAddress().toString());
+        System.out.println("Request listen port: " + requestSock.getLocalPort());
 
         Thread requestHandleRequest = new Thread(new Runnable() {
             @Override
@@ -299,7 +299,9 @@ public class FileServer {
                         length = Integer.valueOf(request.params.get(2));
                         FileChunk chunk = getChunk(fileName, chunkID);
                         char[] data = readChunk(chunk);
-                        response.setData(Arrays.copyOfRange(data, offset, offset + length));
+                        if (data != null) {
+                            response.setData(Arrays.copyOfRange(data, offset, offset + length));
+                        }
                         break;
                     case 'w':
                         chunkID = Integer.valueOf(request.params.get(0));
