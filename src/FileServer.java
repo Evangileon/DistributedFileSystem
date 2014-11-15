@@ -307,6 +307,7 @@ public class FileServer {
                         chunkID = Integer.valueOf(request.params.get(0));
                         int actualLength = Helper.charArrayLength(request.data);
                         FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
+                        System.out.println(Arrays.toString(request.data));
                         int size1 = writeChunk(chunk1, request.data);
                         addToMetaData(chunk1);
                         response.addParam(Integer.toString(size1));
@@ -333,7 +334,7 @@ public class FileServer {
                 output.flush();
                 output.close();
 
-                clientSock.close();
+                //clientSock.close();
 
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
