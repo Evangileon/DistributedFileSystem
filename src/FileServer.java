@@ -173,9 +173,7 @@ public class FileServer {
                                 output = new ObjectOutputStream(heartbeatSock.getOutputStream());
                                 output.writeObject(fileInfo);
                                 output.flush();
-                                output.close();
-                                //System.out.println("fileInfo flushed");
-                                //output.close();
+
                             } catch (IOException e) {
                                 System.out.println(heartbeatSock.getRemoteSocketAddress().toString());
                                 e.printStackTrace();
