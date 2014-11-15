@@ -265,7 +265,6 @@ public class FileServer {
             try {
                 ObjectInputStream input = new ObjectInputStream(clientSock.getInputStream());
                 RequestEnvelop request = (RequestEnvelop) input.readObject();
-                input.close();
 
                 ResponseEnvelop response = new ResponseEnvelop(request);
 

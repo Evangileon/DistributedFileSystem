@@ -192,7 +192,7 @@ public class FileClient {
             ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
             output.writeObject(request);
             output.flush();
-            output.close();
+
         } catch (IOException e) {
             e.printStackTrace();
             return -1;

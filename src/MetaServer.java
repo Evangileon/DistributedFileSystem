@@ -715,6 +715,7 @@ public class MetaServer {
                 ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
                 output.writeObject(response);
                 output.flush();
+                output.close();
 
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
