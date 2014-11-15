@@ -410,12 +410,8 @@ public class FileServer {
 
         try {
             File file = new File(filePath);
-            boolean bMk = file.mkdirs();
             boolean bCr = file.createNewFile();
 
-            if (!bMk) {
-                System.out.println();
-            }
             if (!bCr) {
                 System.out.println("File " + filePath + " not created");
             }
@@ -428,6 +424,13 @@ public class FileServer {
             }
 
             writer.write(buffer, 0, buffer.length);
+
+            // ensure each chunk is 8192 in size
+            if (buffer.length < FileChunk.FIXED_SIZE) {
+                char[] padding = new char[FileChunk.FIXED_SIZE - buffer.length];
+                writer.append(new String(padding));
+            }
+
             return buffer.length;
         } catch (IOException e) {
             e.printStackTrace();

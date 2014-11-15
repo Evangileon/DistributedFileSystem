@@ -46,7 +46,20 @@ public class FileClient {
         }
 
         RequestEnvelop request = new RequestEnvelop(params[0], params[1]);
-        request.addParam(Arrays.copyOfRange(params, 2, params.length));
+
+        switch (request.cmd.charAt(0)) {
+            case 'r':
+                request.addParam(params[2]); // offset
+                request.addParam(params[3]); // length
+                break;
+            case 'w':
+                request.addParam(Integer.toString(params[2].length())); // length
+                break;
+            case 'a':
+
+                break;
+            default:
+        }
 
         int error = sendRequestToMeta(request, clientSock);
         if (error < 0) {
