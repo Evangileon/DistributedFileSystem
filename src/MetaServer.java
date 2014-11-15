@@ -371,8 +371,8 @@ public class MetaServer {
                 continue;
             }
 
-            printFileChunkMap();
-            printAvailabilityMap();
+            //printFileChunkMap();
+            //printAvailabilityMap();
 
             long currentTime = System.currentTimeMillis();
 
@@ -572,7 +572,7 @@ public class MetaServer {
 
                     System.out.println("Heartbeat received from " + id);
 
-                    fileInfo.print();
+                    //fileInfo.print();
                     //System.out.println("fileInfo printed");
 
                     // update file chunk information in meta server
@@ -639,7 +639,6 @@ public class MetaServer {
         public void run() {
 
             try {
-                Socket clientSock = receiveRequestSock.accept();
 
                 ObjectInputStream input = new ObjectInputStream(clientSock.getInputStream());
                 RequestEnvelop request = (RequestEnvelop) input.readObject();
