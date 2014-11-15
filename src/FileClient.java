@@ -56,7 +56,7 @@ public class FileClient {
                 request.addParam(Integer.toString(params[2].length())); // length
                 break;
             case 'a':
-
+                request.addParam(Integer.toString(params[2].length())); // length
                 break;
             default:
         }

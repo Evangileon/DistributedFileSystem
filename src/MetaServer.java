@@ -682,8 +682,8 @@ public class MetaServer {
                         }
                         length = Integer.valueOf(request.params.get(0));
 
-                        error = append(fileName, length, chunkList, chunkLocationList);
-                        if (error >= 0) {
+                        int reta = append(fileName, length, chunkList, chunkLocationList);
+                        if (reta >= 0) {
                             response.addParam(Integer.toString(error)); // offset
                         }
 
@@ -939,6 +939,7 @@ public class MetaServer {
             return lastRemain; // error code
         }
 
+        // last chunk, which is the only chunk may be non-full
         int lastChunk = getLastChunkOfFile(fileName);
         if (lastRemain > 0) {
             // need update the non-full chunk
@@ -968,6 +969,8 @@ public class MetaServer {
             int loc = locationItor.next();
             addToPendingList(fileName, chunk, loc);
         }
+
+        System.out.println("Number of chunks affected: " + chunkList.size());
 
         return FileChunk.FIXED_SIZE - lastRemain;
     }
