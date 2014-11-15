@@ -98,12 +98,21 @@ public class FileClient {
             case 'w':
                 fileName = response.requestCopy.fileName;
                 int ret = writeData(params[params.length - 1], fileName, response.chunksToScan, response.chunksLocation);
-                if (ret >=0) {
+                if (ret >= 0) {
                     System.out.println("Write success");
+                } else {
+                    System.out.println("Failure");
                 }
 
                 break;
             case 'a':
+                fileName = response.requestCopy.fileName;
+                int ret1 = appendData(params[params.length - 1], fileName, Integer.valueOf(response.params.get(0)), response.chunksToScan, response.chunksLocation);
+                if (ret1 >= 0) {
+                    System.out.println("Append success");
+                } else {
+                    System.out.println("Failure");
+                }
 
                 break;
             default:
@@ -285,6 +294,60 @@ public class FileClient {
         }
 
         return data.length();
+    }
+
+    /**
+     * Append data to file
+     * @param data to append
+     * @param fileName file name
+     * @param firstOffset offset in first chunk, other chunk will be entirely new
+     * @param chunks chunk list
+     * @param chunkLocations file server list
+     * @return size written if success, otherwise -1
+     */
+    public int appendData(String data, String fileName, int firstOffset, List<Integer> chunks, List<Integer> chunkLocations) {
+        if (chunks.size() == 0 || firstOffset < 0 || firstOffset >= FileChunk.FIXED_SIZE) {
+            return 0;
+        }
+
+        char[] buffer = data.toCharArray();
+
+        Iterator<Integer> chunkItor = chunks.iterator();
+        Iterator<Integer> locationItor = chunkLocations.iterator();
+
+        // first chunk
+        int chunkID = chunkItor.next();
+        int location = locationItor.next();
+        char[] dataToWrite = Arrays.copyOfRange(buffer, 0, FileChunk.FIXED_SIZE - firstOffset);
+        int ret = writeChunkData(dataToWrite, location, fileName, chunkID);
+        if (ret < 0) {
+            return -1;
+        }
+
+        // other chunks
+        int start = FileChunk.FIXED_SIZE;
+        int end;
+        while (chunkItor.hasNext()) {
+            chunkID = chunkItor.next();
+            location = locationItor.next();
+
+            if (start + FileChunk.FIXED_SIZE >= buffer.length) {
+                // only write non-null data
+                end = buffer.length;
+            } else {
+                // cover a whole chunk
+                end = start + FileChunk.FIXED_SIZE;
+            }
+            dataToWrite = Arrays.copyOfRange(buffer, start, end);
+            start += FileChunk.FIXED_SIZE;
+
+            ret = writeChunkData(dataToWrite, location, fileName, chunkID);
+            if (ret < 0) {
+                return -1;
+            }
+        }
+
+        return 0;
     }
 
     /**
