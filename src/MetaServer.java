@@ -683,6 +683,9 @@ public class MetaServer {
                         length = Integer.valueOf(request.params.get(0));
 
                         error = append(fileName, length, chunkList, chunkLocationList);
+                        if (error >= 0) {
+                            response.addParam(Integer.toString(error)); // offset
+                        }
 
                         break;
                     case 'w':
@@ -925,7 +928,7 @@ public class MetaServer {
      * @param length            to append
      * @param chunkList         list of chunks affected
      * @param chunkLocationList list of location of chunks
-     * @return 0 for success, or error code
+     * @return offset for success, or error code
      */
     public int append(String fileName, int length, List<Integer> chunkList, List<Integer> chunkLocationList) {
         chunkList.clear();
@@ -966,7 +969,7 @@ public class MetaServer {
             addToPendingList(fileName, chunk, loc);
         }
 
-        return FileClient.SUCCESS;
+        return FileChunk.FIXED_SIZE - lastRemain;
     }
 
     /**

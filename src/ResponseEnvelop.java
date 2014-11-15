@@ -1,4 +1,5 @@
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.UUID;
 
@@ -7,6 +8,8 @@ public class ResponseEnvelop implements Serializable {
     int error;
 
     UUID uuid = UUID.randomUUID();
+
+    ArrayList<String> params;
 
     LinkedList<Integer> chunksToScan;
     LinkedList<Integer> chunksLocation;
@@ -29,6 +32,7 @@ public class ResponseEnvelop implements Serializable {
     public ResponseEnvelop(RequestEnvelop request) {
         this.requestCopy = request;
         this.error = 0;
+        this.params = null;
         this.data = null;
         this.chunksToScan = null;
         this.chunksLocation = null;
@@ -40,5 +44,12 @@ public class ResponseEnvelop implements Serializable {
 
     public void setData(char[] data) {
         this.data = data;
+    }
+
+    public void addParam(String param) {
+        if (params == null) {
+            params = new ArrayList<>();
+        }
+        params.add(param);
     }
 }

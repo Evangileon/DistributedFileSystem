@@ -169,11 +169,20 @@ public class FileClient {
             int location = locationItor.next();
 
             int chunkRemain = FileChunk.FIXED_SIZE - offset;
+            char[] more;
             if (length >= chunkRemain) {
-                result.append(readChunkData(location, fileName, chunkID, offset, chunkRemain));
+                more = readChunkData(location, fileName, chunkID, offset, chunkRemain);
             } else {
-                result.append(readChunkData(location, fileName, chunkID, offset, length));
+                more = readChunkData(location, fileName, chunkID, offset, length);
             }
+
+            if (more != null) {
+                result.append(more);
+            } else {
+                System.out.println("Failure");
+                return null;
+            }
+
             length -= FileChunk.FIXED_SIZE;
             offset = 0;
         }
