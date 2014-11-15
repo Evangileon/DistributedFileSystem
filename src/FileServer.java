@@ -106,12 +106,12 @@ public class FileServer {
         return nodes.item(0);
     }
 
-    private FileServer(int id, Node serverNode) {
+    public FileServer(int id, Node serverNode) {
         this.id = id;
         parseXMLToConfigFileServer(serverNode);
     }
 
-    private void resolveAddress() {
+    public void resolveAddress() {
         if (hostname == null) {
             return;
         }
