@@ -269,9 +269,11 @@ public class FileClient {
             int location = locationItor.next();
 
             if (start + FileChunk.FIXED_SIZE >= buffer.length) {
-                end = start + FileChunk.FIXED_SIZE;
-            } else {
+                // only write non-null data
                 end = buffer.length;
+            } else {
+                // cover a whole chunk
+                end = start + FileChunk.FIXED_SIZE;
             }
             char[] dataToWrite = Arrays.copyOfRange(buffer, start, end);
             start += FileChunk.FIXED_SIZE;

@@ -431,6 +431,7 @@ public class FileServer {
                 char[] padding = new char[FileChunk.FIXED_SIZE - buffer.length];
                 writer.append(new String(padding));
             }
+            writer.close();
 
             return buffer.length;
         } catch (IOException e) {
