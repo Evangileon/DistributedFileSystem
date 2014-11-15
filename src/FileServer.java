@@ -292,6 +292,10 @@ public class FileServer {
                 int length;
                 int ret;
 
+                if (request.data != null) {
+                    System.out.println(String.format("%s|%s|%d", cmd, fileName, request.data.length));
+                }
+
                 switch (cmd.charAt(0)) {
                     case 'r':
                         chunkID = Integer.valueOf(request.params.get(0));
@@ -307,7 +311,7 @@ public class FileServer {
                         chunkID = Integer.valueOf(request.params.get(0));
                         int actualLength = Helper.charArrayLength(request.data);
                         FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
-                        System.out.println(Arrays.toString(request.data));
+                        //System.out.println(Arrays.toString(request.data));
                         int size1 = writeChunk(chunk1, request.data);
                         addToMetaData(chunk1);
                         response.addParam(Integer.toString(size1));
