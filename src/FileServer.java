@@ -263,70 +263,73 @@ public class FileServer {
 
         @Override
         public void run() {
-            while (true) {
-                try {
-                    ObjectInputStream input = new ObjectInputStream(clientSock.getInputStream());
-                    RequestEnvelop request = (RequestEnvelop) input.readObject();
-                    input.close();
 
-                    ResponseEnvelop response = new ResponseEnvelop(request);
+            try {
+                ObjectInputStream input = new ObjectInputStream(clientSock.getInputStream());
+                RequestEnvelop request = (RequestEnvelop) input.readObject();
+                input.close();
 
-                    String cmd = request.cmd;
-                    String fileName = request.fileName;
-                    int chunkID;
-                    int offset;
-                    int length;
-                    int ret;
+                ResponseEnvelop response = new ResponseEnvelop(request);
 
-                    switch (cmd.charAt(0)) {
-                        case 'r':
-                            chunkID = Integer.valueOf(request.params.get(0));
-                            offset = Integer.valueOf(request.params.get(1));
-                            length = Integer.valueOf(request.params.get(2));
-                            FileChunk chunk = getChunk(fileName, chunkID);
-                            char[] data = readChunk(chunk);
-                            response.setData(Arrays.copyOfRange(data, offset, offset + length));
+                String cmd = request.cmd;
+                String fileName = request.fileName;
+                int chunkID;
+                int offset;
+                int length;
+                int ret;
+
+                switch (cmd.charAt(0)) {
+                    case 'r':
+                        chunkID = Integer.valueOf(request.params.get(0));
+                        offset = Integer.valueOf(request.params.get(1));
+                        length = Integer.valueOf(request.params.get(2));
+                        FileChunk chunk = getChunk(fileName, chunkID);
+                        char[] data = readChunk(chunk);
+                        response.setData(Arrays.copyOfRange(data, offset, offset + length));
+                        break;
+                    case 'w':
+                        chunkID = Integer.valueOf(request.params.get(0));
+                        int actualLength = Helper.charArrayLength(request.data);
+                        FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
+                        writeChunk(chunk1, request.data);
+                        addToMetaData(chunk1);
+                        break;
+                    case 'a':
+                        chunkID = Integer.valueOf(request.params.get(0));
+                        FileChunk chunk2 = getChunk(fileName, chunkID);
+                        FileChunk oldChunk = getChunk(fileName, chunkID);
+                        ret = appendChunk(chunk2, request.data);
+                        if (ret < 0 || ret != request.data.length) {
+                            response.setError(FileClient.FILE_LENGTH_EXCEED);
                             break;
-                        case 'w':
-                            chunkID = Integer.valueOf(request.params.get(0));
-                            int actualLength = Helper.charArrayLength(request.data);
-                            FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
-                            writeChunk(chunk1, request.data);
-                            addToMetaData(chunk1);
-                            break;
-                        case 'a':
-                            chunkID = Integer.valueOf(request.params.get(0));
-                            FileChunk chunk2 = getChunk(fileName, chunkID);
-                            FileChunk oldChunk = getChunk(fileName, chunkID);
-                            ret = appendChunk(chunk2, request.data);
-                            if (ret < 0 || ret != request.data.length) {
-                                response.setError(FileClient.FILE_LENGTH_EXCEED);
-                                break;
-                            }
-                            chunk2.acutualLength = oldChunk.acutualLength + ret;
-                            updateMetaData(chunk2);
-                            break;
-                        default:
-                            System.out.println("Unknown command");
-                            response.setError(FileClient.INVALID_COMMAND);
-                    }
-
-                    ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
-                    output.writeObject(response);
-                    output.flush();
-                    output.close();
-
-                } catch (IOException | ClassNotFoundException e) {
-                    e.printStackTrace();
+                        }
+                        chunk2.acutualLength = oldChunk.acutualLength + ret;
+                        updateMetaData(chunk2);
+                        break;
+                    default:
+                        System.out.println("Unknown command");
+                        response.setError(FileClient.INVALID_COMMAND);
                 }
+
+                ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
+                output.writeObject(response);
+                output.flush();
+                output.close();
+
+                clientSock.close();
+
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
             }
+
         }
     }
 
     /**
      * Get file chunk by file name and ID
+     *
      * @param fileName real file
-     * @param chunkID ID
+     * @param chunkID  ID
      * @return chunk if found, otherwise null
      */
     private FileChunk getChunk(String fileName, int chunkID) {
@@ -417,6 +420,7 @@ public class FileServer {
 
     /**
      * Add chunk information to meta data
+     *
      * @param chunk control block
      */
     private void addToMetaData(FileChunk chunk) {
@@ -437,6 +441,7 @@ public class FileServer {
 
     /**
      * Update the meta data, mainly update actual length
+     *
      * @param chunk control block
      */
     public void updateMetaData(FileChunk chunk) {
