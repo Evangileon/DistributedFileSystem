@@ -215,6 +215,21 @@ public class FileServer {
     }
 
     /**
+     * Create a new thread to keep sending heartbeat
+     */
+    public void prepareToSendHeartbeat() {
+        Thread threadHeartbeat = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                heartbeatToMetaServer();
+            }
+        });
+
+        threadHeartbeat.setDaemon(true);
+        threadHeartbeat.start();
+    }
+
+    /**
      * Create a thread to listen to request from clients or meta server
      */
     private void prepareToReceiveRequest() {
@@ -501,15 +516,27 @@ public class FileServer {
         resolveAddress();
     }
 
+    private void keepLive() {
+        while (true) {
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     /**
      * Launch all processes
      */
     public void launch() {
         initialize();
 
-        heartbeatToMetaServer();
+        prepareToSendHeartbeat();
 
         prepareToReceiveRequest();
+
+        keepLive();
     }
 
     public static void main(String[] args) {
