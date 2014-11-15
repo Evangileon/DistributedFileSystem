@@ -325,6 +325,7 @@ public class FileServer {
                             response.setError(FileClient.FILE_LENGTH_EXCEED);
                             break;
                         }
+                        response.addParam(Integer.toString(ret));
                         chunk2.acutualLength = oldChunk.acutualLength + ret;
                         updateMetaData(chunk2);
                         break;

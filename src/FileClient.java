@@ -148,6 +148,10 @@ public class FileClient {
      */
     private char[] readChunkData(int fileServerID, String fileName, int chunkID, int offset, int length) {
         FileServer fileServer = allFileServerList.get(fileServerID);
+        if (fileServer == null) {
+            return null;
+        }
+
         try {
             Socket fileSock = new Socket(allFileServerList.get(fileServerID).hostname, fileServer.requestFilePort);
             RequestEnvelop request = new RequestEnvelop("r", fileName);
@@ -163,8 +167,8 @@ public class FileClient {
             ResponseEnvelop response = (ResponseEnvelop) input.readObject();
 
             input.close();
-
             fileSock.close();
+
             return response.data;
 
         } catch (IOException e) {
@@ -231,6 +235,12 @@ public class FileClient {
     private int writeChunkData(char[] data, int fileServerID, String fileName, int chunkID) {
 
         FileServer fileServer = allFileServerList.get(fileServerID);
+        if (fileServer == null) {
+            return -1;
+        }
+        if (data == null) {
+            return 0;
+        }
 
         try {
             Socket fileSock = new Socket(fileServer.hostname, fileServer.requestFilePort);
@@ -240,9 +250,13 @@ public class FileClient {
 
             ObjectOutputStream output = new ObjectOutputStream(fileSock.getOutputStream());
             output.writeObject(request);
+            output.flush();
 
             ObjectInputStream input = new ObjectInputStream(fileSock.getInputStream());
             ResponseEnvelop response = (ResponseEnvelop) input.readObject();
+
+            input.close();
+            fileSock.close();
 
             if (Integer.valueOf(response.params.get(0)) == data.length) {
                 return data.length;
@@ -297,6 +311,58 @@ public class FileClient {
     }
 
     /**
+     * Append data to specified chunk, data in the chunk that exceed the remain space will be ignored
+     * @param data to append
+     * @param fileServerID file server ID
+     * @param fileName file name
+     * @param chunkID chunk ID in the file server in the chunk
+     * @param offset offset in chunk
+     * @return actual size appended if success, otherwise -1
+     */
+    private int appendChunkData(char[] data, int fileServerID, String fileName, int chunkID, int offset) {
+        FileServer fileServer = allFileServerList.get(fileServerID);
+        if (fileServer == null) {
+            return -1;
+        }
+        if (data == null) {
+            return 0;
+        }
+
+        try {
+            Socket fileSock = new Socket(fileServer.hostname, fileServer.requestFilePort);
+            RequestEnvelop request = new RequestEnvelop("a", fileName);
+            request.addParam(Integer.toString(chunkID));
+            request.setData(data);
+
+            ObjectOutputStream output = new ObjectOutputStream(fileSock.getOutputStream());
+            output.writeObject(request);
+            output.flush();
+
+            ObjectInputStream input = new ObjectInputStream(fileSock.getInputStream());
+            ResponseEnvelop response = (ResponseEnvelop) input.readObject();
+
+            input.close();
+            fileSock.close();
+
+            if (response.params.size() < 1) {
+                return -1;
+            }
+
+            if (Integer.valueOf(response.params.get(0)) == data.length) {
+                return data.length;
+            } else {
+                return -1;
+            }
+
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        return 0;
+    }
+
+
+    /**
      * Append data to file
      * @param data to append
      * @param fileName file name
@@ -318,8 +384,8 @@ public class FileClient {
         // first chunk
         int chunkID = chunkItor.next();
         int location = locationItor.next();
-        char[] dataToWrite = Arrays.copyOfRange(buffer, 0, FileChunk.FIXED_SIZE - firstOffset);
-        int ret = writeChunkData(dataToWrite, location, fileName, chunkID);
+        char[] dataToWrite = Arrays.copyOfRange(buffer, 0, Math.min(FileChunk.FIXED_SIZE - firstOffset, data.length()));
+        int ret = appendChunkData(dataToWrite, location, fileName, chunkID, firstOffset % FileChunk.FIXED_SIZE);
         if (ret < 0) {
             return -1;
         }
