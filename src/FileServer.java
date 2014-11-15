@@ -173,7 +173,8 @@ public class FileServer {
                                 output = new ObjectOutputStream(heartbeatSock.getOutputStream());
                                 output.writeObject(fileInfo);
                                 output.flush();
-                                System.out.println("fileInfo flushed");
+                                output.close();
+                                //System.out.println("fileInfo flushed");
                                 //output.close();
                             } catch (IOException e) {
                                 System.out.println(heartbeatSock.getRemoteSocketAddress().toString());
@@ -266,6 +267,7 @@ public class FileServer {
                 try {
                     ObjectInputStream input = new ObjectInputStream(clientSock.getInputStream());
                     RequestEnvelop request = (RequestEnvelop) input.readObject();
+                    input.close();
 
                     ResponseEnvelop response = new ResponseEnvelop(request);
 
@@ -312,6 +314,7 @@ public class FileServer {
                     ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
                     output.writeObject(response);
                     output.flush();
+                    output.close();
 
                 } catch (IOException | ClassNotFoundException e) {
                     e.printStackTrace();

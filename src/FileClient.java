@@ -88,7 +88,11 @@ public class FileClient {
             default:
         }
 
-
+        try {
+            clientSock.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         return 0;
     }
 
@@ -124,10 +128,13 @@ public class FileClient {
             ObjectOutputStream output = new ObjectOutputStream(fileSock.getOutputStream());
             output.writeObject(request);
             output.flush();
+            output.close();
 
             ObjectInputStream input = new ObjectInputStream(fileSock.getInputStream());
             ResponseEnvelop response = (ResponseEnvelop) input.readObject();
+            input.close();
 
+            fileSock.close();
             return response.data;
 
         } catch (IOException e) {
@@ -185,6 +192,7 @@ public class FileClient {
             ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
             output.writeObject(request);
             output.flush();
+            output.close();
         } catch (IOException e) {
             e.printStackTrace();
             return -1;

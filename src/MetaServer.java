@@ -643,6 +643,7 @@ public class MetaServer {
 
                 ObjectInputStream input = new ObjectInputStream(clientSock.getInputStream());
                 RequestEnvelop request = (RequestEnvelop) input.readObject();
+                input.close();
 
                 String command = request.cmd;
                 String fileName = request.fileName;
@@ -715,6 +716,7 @@ public class MetaServer {
                 ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
                 output.writeObject(response);
                 output.flush();
+                output.close();
                 clientSock.close();
 
             } catch (IOException | ClassNotFoundException e) {
@@ -908,6 +910,8 @@ public class MetaServer {
             request.params.add(Integer.toString(Math.min(FileChunk.FIXED_SIZE, length)));
             output.writeObject(request);
             output.flush();
+            output.close();
+            requestSock.close();
         } catch (IOException e) {
             e.printStackTrace();
             return FileClient.FILE_SERVER_NOT_AVAILABLE;
