@@ -6,10 +6,10 @@ public class FileChunk implements Comparable<FileChunk>, Serializable {
     int chunkID;
     int acutualLength;
 
-    public FileChunk(String realFileName, int chunkID, int acutualLength) {
+    public FileChunk(String realFileName, int chunkID, int actualLength) {
         this.realFileName = realFileName;
         this.chunkID = chunkID;
-        this.acutualLength = acutualLength;
+        this.acutualLength = actualLength;
     }
 
     public String getChunkName() {

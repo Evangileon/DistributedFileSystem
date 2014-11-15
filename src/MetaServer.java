@@ -908,7 +908,7 @@ public class MetaServer {
             Socket requestSock = new Socket(fileServer.hostname, fileServer.requestFilePort);
             ObjectOutputStream output = new ObjectOutputStream(requestSock.getOutputStream());
             RequestEnvelop request = new RequestEnvelop("w", fileName);
-            request.params.add(Integer.toString(Math.min(FileChunk.FIXED_SIZE, length)));
+            request.params.add(Integer.toString(chunkList.get(0)));
             output.writeObject(request);
             output.flush();
             output.close();

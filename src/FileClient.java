@@ -99,7 +99,7 @@ public class FileClient {
                 fileName = response.requestCopy.fileName;
                 int ret = writeData(params[params.length - 1], fileName, response.chunksToScan, response.chunksLocation);
                 if (ret >=0) {
-                    System.out.printf("Write success");
+                    System.out.println("Write success");
                 }
 
                 break;
