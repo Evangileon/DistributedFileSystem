@@ -88,7 +88,7 @@ public class FileServer {
         }
     }
 
-    public static Node getFileServerNodeWithHostname(Document doc, XPath xPath, String hostname) {
+    private static Node getFileServerNodeWithHostname(Document doc, XPath xPath, String hostname) {
         NodeList nodes = null;
         try {
             XPathExpression expr = xPath.compile(String.format("/configs/fileServers/fileServer[hostname='%s']", hostname));
@@ -106,12 +106,12 @@ public class FileServer {
         return nodes.item(0);
     }
 
-    public FileServer(int id, Node serverNode) {
+    private FileServer(int id, Node serverNode) {
         this.id = id;
         parseXMLToConfigFileServer(serverNode);
     }
 
-    public void resolveAddress() {
+    private void resolveAddress() {
         if (hostname == null) {
             return;
         }
@@ -217,7 +217,7 @@ public class FileServer {
     /**
      * Create a new thread to keep sending heartbeat
      */
-    public void prepareToSendHeartbeat() {
+    private void prepareToSendHeartbeat() {
         Thread threadHeartbeat = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -464,7 +464,7 @@ public class FileServer {
      *
      * @param chunk control block
      */
-    public void updateMetaData(FileChunk chunk) {
+    private void updateMetaData(FileChunk chunk) {
         if (chunk == null) {
             return;
         }
@@ -489,7 +489,7 @@ public class FileServer {
      * @param buffer data
      * @return -1 if fails, otherwise the actual size of data appended
      */
-    public int appendChunk(FileChunk chunk, char[] buffer) {
+    private int appendChunk(FileChunk chunk, char[] buffer) {
         if (chunk == null) {
             return -1;
         }

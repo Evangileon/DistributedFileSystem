@@ -39,6 +39,10 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
         // for each file entry under the directory
         for (File file : fileList) {
             try {
+                if (file.isDirectory()) {
+                    continue;
+                }
+
                 String fileName = file.getName();
                 // ignore invalid one
                 if (fileName.length() <= (8 + 1)) {
