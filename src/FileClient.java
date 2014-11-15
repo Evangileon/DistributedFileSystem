@@ -78,8 +78,16 @@ public class FileClient {
                 length = Integer.valueOf(response.requestCopy.params.get(1));
 
                 String data = readData(fileName, offset, length, response.chunksToScan, response.chunksLocation);
+                if (data != null) {
+                    System.out.println(data);
+                }
                 break;
             case 'w':
+                fileName = response.requestCopy.fileName;
+                int ret = writeData(params[params.length - 1], fileName, response.chunksToScan, response.chunksLocation);
+                if (ret >=0) {
+                    System.out.printf("Write success");
+                }
 
                 break;
             case 'a':
@@ -157,7 +165,7 @@ public class FileClient {
      * @return concatenated data
      */
     public String readData(String fileName, int offset, int length,  List<Integer> chunksToScan, List<Integer> chunksLocation) {
-        StringBuffer result = new StringBuffer();
+        StringBuilder result = new StringBuilder();
 
         offset = offset % FileChunk.FIXED_SIZE;
 
@@ -188,6 +196,80 @@ public class FileClient {
         }
 
         return result.toString();
+    }
+
+    /**
+     * Write to chunk
+     * @param data buffer
+     * @param fileServerID file server ID
+     * @param fileName file name
+     * @param chunkID chunk ID for this file
+     * @return size written if success, otherwise -1
+     */
+    private int writeChunkData(char[] data, int fileServerID, String fileName, int chunkID) {
+
+        FileServer fileServer = allFileServerList.get(fileServerID);
+
+        try {
+            Socket fileSock = new Socket(fileServer.hostname, fileServer.requestFilePort);
+            RequestEnvelop request = new RequestEnvelop("w", fileName);
+            request.addParam(Integer.toString(chunkID));
+            request.setData(data);
+
+            ObjectOutputStream output = new ObjectOutputStream(fileSock.getOutputStream());
+            output.writeObject(request);
+
+            ObjectInputStream input = new ObjectInputStream(fileSock.getInputStream());
+            ResponseEnvelop response = (ResponseEnvelop) input.readObject();
+
+            if (Integer.valueOf(response.params.get(0)) == data.length) {
+                return data.length;
+            } else {
+                return -1;
+            }
+
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        return 0;
+    }
+
+    /**
+     * Write data to file servers according the information return by meta server
+     * @param data buffer
+     * @param fileName file name
+     * @param chunks chunk ID list
+     * @param chunkLocations file server list
+     * @return size written if success, otherwise -1
+     */
+    public int writeData(String data, String fileName, List<Integer> chunks, List<Integer> chunkLocations) {
+        char[] buffer = data.toCharArray();
+
+        Iterator<Integer> chunkItor = chunks.iterator();
+        Iterator<Integer> locationItor = chunkLocations.iterator();
+
+        int start = 0;
+        int end;
+        while (chunkItor.hasNext()) {
+            int chunkID = chunkItor.next();
+            int location = locationItor.next();
+
+            if (start + FileChunk.FIXED_SIZE >= buffer.length) {
+                end = start + FileChunk.FIXED_SIZE;
+            } else {
+                end = buffer.length;
+            }
+            char[] dataToWrite = Arrays.copyOfRange(buffer, start, end);
+            start += FileChunk.FIXED_SIZE;
+
+            int ret = writeChunkData(dataToWrite, location, fileName, chunkID);
+            if (ret < 0) {
+                return -1;
+            }
+        }
+
+        return data.length();
     }
 
     /**

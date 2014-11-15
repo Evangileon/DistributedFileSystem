@@ -307,8 +307,9 @@ public class FileServer {
                         chunkID = Integer.valueOf(request.params.get(0));
                         int actualLength = Helper.charArrayLength(request.data);
                         FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
-                        writeChunk(chunk1, request.data);
+                        int size1 = writeChunk(chunk1, request.data);
                         addToMetaData(chunk1);
+                        response.addParam(Integer.toString(size1));
                         break;
                     case 'a':
                         chunkID = Integer.valueOf(request.params.get(0));
