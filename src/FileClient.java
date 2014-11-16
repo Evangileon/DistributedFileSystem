@@ -12,7 +12,7 @@ import java.util.*;
 
 
 public class FileClient {
-    
+
     public static final int SUCCESS = 0;
     public static final int CHUNK_NOT_AVAILABLE = -1;
     public static final int CHUNK_IN_PENDING = -2;
@@ -128,9 +128,10 @@ public class FileClient {
 
     /**
      * Read all data from chunk
+     *
      * @param fileServerID file server ID
-     * @param fileName file name demanded
-     * @param chunkID chunk ID for the file
+     * @param fileName     file name demanded
+     * @param chunkID      chunk ID for the file
      * @return data if success, otherwise null
      */
     private char[] readChunkData(int fileServerID, String fileName, int chunkID) {
@@ -139,11 +140,12 @@ public class FileClient {
 
     /**
      * Read data from chunk
+     *
      * @param fileServerID file server ID
-     * @param fileName file name demanded
-     * @param chunkID chunk ID for the file
-     * @param offset offset inside the chunk
-     * @param length data length
+     * @param fileName     file name demanded
+     * @param chunkID      chunk ID for the file
+     * @param offset       offset inside the chunk
+     * @param length       data length
      * @return data if success, otherwise null
      */
     private char[] readChunkData(int fileServerID, String fileName, int chunkID, int offset, int length) {
@@ -183,14 +185,15 @@ public class FileClient {
 
     /**
      * Read data from file servers according information in returned response
-     * @param fileName demanded file
-     * @param offset offset in first chunk of returned
-     * @param length data length
-     * @param chunksToScan chunk list need to retrieve
+     *
+     * @param fileName       demanded file
+     * @param offset         offset in first chunk of returned
+     * @param length         data length
+     * @param chunksToScan   chunk list need to retrieve
      * @param chunksLocation file server ID
      * @return concatenated data
      */
-    public String readData(String fileName, int offset, int length,  List<Integer> chunksToScan, List<Integer> chunksLocation) {
+    public String readData(String fileName, int offset, int length, List<Integer> chunksToScan, List<Integer> chunksLocation) {
         StringBuilder result = new StringBuilder();
 
         offset = offset % FileChunk.FIXED_SIZE;
@@ -226,10 +229,11 @@ public class FileClient {
 
     /**
      * Write to chunk
-     * @param data buffer
+     *
+     * @param data         buffer
      * @param fileServerID file server ID
-     * @param fileName file name
-     * @param chunkID chunk ID for this file
+     * @param fileName     file name
+     * @param chunkID      chunk ID for this file
      * @return size written if success, otherwise -1
      */
     private int writeChunkData(char[] data, int fileServerID, String fileName, int chunkID) {
@@ -273,9 +277,10 @@ public class FileClient {
 
     /**
      * Write data to file servers according the information return by meta server
-     * @param data buffer
-     * @param fileName file name
-     * @param chunks chunk ID list
+     *
+     * @param data           buffer
+     * @param fileName       file name
+     * @param chunks         chunk ID list
      * @param chunkLocations file server list
      * @return size written if success, otherwise -1
      */
@@ -312,10 +317,11 @@ public class FileClient {
 
     /**
      * Append data to specified chunk, data in the chunk that exceed the remain space will be ignored
-     * @param data to append
+     *
+     * @param data         to append
      * @param fileServerID file server ID
-     * @param fileName file name
-     * @param chunkID chunk ID in the file server in the chunk
+     * @param fileName     file name
+     * @param chunkID      chunk ID in the file server in the chunk
      * @return actual size appended if success, otherwise -1
      */
     private int appendChunkData(char[] data, int fileServerID, String fileName, int chunkID) {
@@ -363,10 +369,11 @@ public class FileClient {
 
     /**
      * Append data to file
-     * @param data to append
-     * @param fileName file name
-     * @param firstOffset offset in first chunk, other chunk will be entirely new
-     * @param chunks chunk list
+     *
+     * @param data           to append
+     * @param fileName       file name
+     * @param firstOffset    offset in first chunk, other chunk will be entirely new
+     * @param chunks         chunk list
      * @param chunkLocations file server list
      * @return size written if success, otherwise -1
      */
@@ -420,7 +427,8 @@ public class FileClient {
 
     /**
      * Send request to meta server
-     * @param request already initialized and set
+     *
+     * @param request    already initialized and set
      * @param clientSock established socket
      * @return 0 if success, -1 if fail
      */
@@ -440,6 +448,7 @@ public class FileClient {
 
     /**
      * Receive response for latest request
+     *
      * @param clientSock established socket
      * @return response body
      */
@@ -490,6 +499,7 @@ public class FileClient {
 
     /**
      * Retrieve information about all file servers
+     *
      * @param doc XML
      */
     private void parseXMLToConfigFileServers(Document doc) {
@@ -523,6 +533,7 @@ public class FileClient {
 
     /**
      * Get hostname and port of meta
+     *
      * @param serverNode element node for meta
      */
     private void parseXMLToConfigMetaServer(Node serverNode) {

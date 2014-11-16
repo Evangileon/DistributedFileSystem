@@ -326,7 +326,7 @@ public class FileServer {
                             break;
                         }
                         response.addParam(Integer.toString(ret));
-                        chunk2.acutualLength = oldChunk.acutualLength + ret;
+                        chunk2.actualLength = oldChunk.actualLength + ret;
                         updateMetaData(chunk2);
                         break;
                     default:
@@ -482,7 +482,7 @@ public class FileServer {
         }
         for (FileChunk ck : list) {
             if (ck.chunkID == chunk.chunkID) {
-                ck.acutualLength = chunk.acutualLength;
+                ck.actualLength = chunk.actualLength;
                 return;
             }
         }
@@ -508,6 +508,11 @@ public class FileServer {
             return -1;
         }
         int dataLength = Helper.charArrayLength(data);
+
+        // data need to write exceed chunk limit
+        if (FileChunk.FIXED_SIZE - dataLength < buffer.length) {
+            return FileClient.FILE_LENGTH_EXCEED;
+        }
 
         // fill the data with content in buffer
         int actualLengthAppended = Math.min(FileChunk.FIXED_SIZE - dataLength, buffer.length);

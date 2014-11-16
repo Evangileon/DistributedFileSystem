@@ -4,12 +4,12 @@ public class FileChunk implements Comparable<FileChunk>, Serializable {
     public static final int FIXED_SIZE = 8192;
     String realFileName;
     int chunkID;
-    int acutualLength;
+    int actualLength;
 
     public FileChunk(String realFileName, int chunkID, int actualLength) {
         this.realFileName = realFileName;
         this.chunkID = chunkID;
-        this.acutualLength = actualLength;
+        this.actualLength = actualLength;
     }
 
     public String getChunkName() {

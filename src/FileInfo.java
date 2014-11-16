@@ -11,7 +11,9 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
     // file chunks are in increasing order by their id
     HashMap<String, ArrayList<FileChunk>> fileChunks;
 
-    public FileInfo() {}
+    public FileInfo() {
+    }
+
     public FileInfo(String dir) {
         this.fileDir = dir;
     }

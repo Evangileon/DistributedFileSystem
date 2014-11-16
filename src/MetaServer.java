@@ -324,6 +324,7 @@ public class MetaServer {
 
     /**
      * File server heartbeat delivered to meta
+     *
      * @param id of file server
      */
     private void fileServerHeartbeatTouch(int id) {
@@ -682,9 +683,9 @@ public class MetaServer {
                         }
                         length = Integer.valueOf(request.params.get(0));
 
-                        int reta = append(fileName, length, chunkList, chunkLocationList);
-                        if (reta >= 0) {
-                            response.addParam(Integer.toString(error)); // offset
+                        int offseta = append(fileName, length, chunkList, chunkLocationList);
+                        if (offseta >= 0) {
+                            response.addParam(Integer.toString(offseta)); // offset
                         }
 
                         break;
@@ -815,7 +816,7 @@ public class MetaServer {
         // the chunk you demand is in file server whereLastChunk
         ArrayList<FileChunk> chunks = fileServerInfoMap.get(whereLastChunk).fileChunks.get(fileName);
         FileChunk lastChunk = chunks.get(chunks.size() - 1);
-        int actualLength = lastChunk.acutualLength;
+        int actualLength = lastChunk.actualLength;
         return FileChunk.FIXED_SIZE - actualLength;
     }
 
@@ -932,7 +933,7 @@ public class MetaServer {
      * @param length            to append
      * @param chunkList         list of chunks affected
      * @param chunkLocationList list of location of chunks
-     * @return offset for success, or error code
+     * @return offset that begin to append if success, or error code
      */
     public int append(String fileName, int length, List<Integer> chunkList, List<Integer> chunkLocationList) {
         chunkList.clear();
