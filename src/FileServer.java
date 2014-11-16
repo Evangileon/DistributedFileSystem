@@ -433,7 +433,7 @@ public class FileServer {
             boolean bCr = file.createNewFile();
 
             if (!bCr) {
-                System.out.println("File " + filePath + " not created");
+                System.out.println("File " + filePath);
             }
 
             FileWriter writer = new FileWriter(file);

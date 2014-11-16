@@ -357,9 +357,6 @@ public class FileClient {
             ObjectInputStream input = new ObjectInputStream(fileSock.getInputStream());
             ResponseEnvelop response = (ResponseEnvelop) input.readObject();
 
-            input.close();
-            fileSock.close();
-
             if (response.params == null || response.params.size() < 1) {
                 return -1;
             }
@@ -370,6 +367,7 @@ public class FileClient {
                 return -1;
             }
 
+            input.close();
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
@@ -590,6 +588,8 @@ public class FileClient {
                     int error = client.execute(params);
                     if (error < 0) {
                         System.out.println("Failure: " + error);
+                    } else {
+                        break;
                     }
                 } while ((--tries) > 0);
 

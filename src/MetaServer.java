@@ -925,7 +925,7 @@ public class MetaServer {
             output.writeObject(request);
             output.flush();
             output.close();
-            requestSock.close();
+            //requestSock.close();
         } catch (IOException e) {
             e.printStackTrace();
             return FileClient.FILE_SERVER_NOT_AVAILABLE;
