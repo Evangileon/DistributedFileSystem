@@ -22,6 +22,9 @@ public class FileChunk implements Comparable<FileChunk>, Serializable {
 
     @Override
     public int compareTo(FileChunk o) {
+        if (o == null) {
+            return 0;
+        }
         return this.chunkID - o.chunkID;
     }
 }

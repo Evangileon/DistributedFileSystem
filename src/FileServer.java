@@ -16,6 +16,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -302,6 +303,10 @@ public class FileServer {
                         offset = Integer.valueOf(request.params.get(1));
                         length = Integer.valueOf(request.params.get(2));
                         FileChunk chunk = getChunk(fileName, chunkID);
+                        if (chunk == null) {
+                            response.setError(FileClient.CHUNK_NOT_AVAILABLE);
+                            break;
+                        }
                         char[] data = readChunk(chunk);
                         if (data != null) {
                             response.setData(Arrays.copyOfRange(data, offset, offset + length));
@@ -320,6 +325,10 @@ public class FileServer {
                         chunkID = Integer.valueOf(request.params.get(0));
                         FileChunk chunk2 = getChunk(fileName, chunkID);
                         FileChunk oldChunk = getChunk(fileName, chunkID);
+                        if (chunk2 == null || oldChunk == null) {
+                            response.setError(FileClient.CHUNK_NOT_AVAILABLE);
+                            break;
+                        }
                         ret = appendChunk(chunk2, request.data);
                         if (ret < 0 || ret != request.data.length) {
                             response.setError(FileClient.FILE_LENGTH_EXCEED);
@@ -328,6 +337,11 @@ public class FileServer {
                         response.addParam(Integer.toString(ret));
                         chunk2.actualLength = oldChunk.actualLength + ret;
                         updateMetaData(chunk2);
+                        break;
+                    case 'd':
+                        String fileNameToDelete = request.fileName;
+                        int affected = deleteFile(fileNameToDelete);
+                        response.addParam(Integer.toString(affected));
                         break;
                     default:
                         System.out.println("Unknown command");
@@ -443,6 +457,35 @@ public class FileServer {
             e.printStackTrace();
             return -1;
         }
+    }
+
+    /**
+     * Delete all chunks of this file
+     *
+     * @param fileName to delete
+     * @return chunks affected
+     */
+    private int deleteFile(String fileName) {
+        ArrayList<FileChunk> chunks = fileInfo.fileChunks.get(fileName);
+        if (chunks == null) {
+            return 0;
+        }
+
+        // delete from disk
+        int num = 0;
+        for (FileChunk chunk : chunks) {
+            File chunkFile = new File(storageDir + "/" + chunk.getChunkName());
+            if (chunkFile.delete()) {
+                num++;
+            }
+        }
+
+        // then delete from file info
+        synchronized (fileInfo) {
+            fileInfo.fileChunks.remove(fileName);
+        }
+
+        return num;
     }
 
     /**

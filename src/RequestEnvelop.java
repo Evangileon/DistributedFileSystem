@@ -22,10 +22,6 @@ public class RequestEnvelop implements Serializable {
         params.add(param);
     }
 
-    public void addParam(String[] params) {
-        this.params.addAll(Arrays.asList(params));
-    }
-
     public void setData(char[] data) {
         this.data = data;
     }

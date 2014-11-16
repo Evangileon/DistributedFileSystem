@@ -703,6 +703,11 @@ public class MetaServer {
                         break;
                     case 'd':
                         // TODO delete file
+                        boolean deleted = delete(fileName);
+                        if (!deleted) {
+                            error = FileClient.FILE_NOT_EXIST;
+                        }
+
                         break;
                     default:
                         error = FileClient.INVALID_COMMAND;
@@ -883,6 +888,11 @@ public class MetaServer {
         chunkList.clear();
         chunkLocationList.clear();
 
+        // overwrite
+        if (fileChunkMap.containsKey(fileName)) {
+            delete(fileName);
+        }
+
         int lastChunk = (length - 1) / FileChunk.FIXED_SIZE;
         Random random = new Random();
 
@@ -981,6 +991,69 @@ public class MetaServer {
         }
 
         return FileChunk.FIXED_SIZE - lastRemain;
+    }
+
+    /**
+     * Delete files. Delete chunks from file servers with file name
+     *
+     * @param fileName to delete
+     * @return deleted successfully
+     */
+    public boolean delete(String fileName) {
+        List<Integer> chunkLocations = fileChunkMap.get(fileName);
+        List<Boolean> chunkAvails = fileChunkAvailableMap.get(fileName);
+
+        if (chunkAvails == null || chunkLocations == null) {
+            return false;
+        }
+
+        // check pending list
+        if (pendingFileChunks.containsKey(fileName)) {
+            return false;
+        }
+
+        // check all availability
+        for (Boolean chunkAvail : chunkAvails) {
+            if (!chunkAvail) {
+                return false;
+            }
+        }
+
+        int affected = 0;
+        // broadcast delete request to file servers
+        for (Map.Entry<Integer, FileServer> pair : allFileServerList.entrySet()) {
+            FileServer fileServer = pair.getValue();
+            RequestEnvelop request = new RequestEnvelop("d", fileName);
+
+            try {
+                Socket fileSock = new Socket(fileServer.hostname, fileServer.requestFilePort);
+                ObjectOutputStream output = new ObjectOutputStream(fileSock.getOutputStream());
+                output.writeObject(request);
+                output.flush();
+
+                ObjectInputStream input = new ObjectInputStream(fileSock.getInputStream());
+                ResponseEnvelop response = (ResponseEnvelop) input.readObject();
+
+                if (response.params != null && response.params.size() > 0) {
+                    affected += Integer.valueOf(response.params.get(0));
+                }
+
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+
+        // delete from metadata
+        synchronized (fileChunkMap) {
+            fileChunkMap.remove(fileName);
+        }
+        synchronized (fileChunkAvailableMap) {
+            fileChunkAvailableMap.remove(fileName);
+        }
+
+        System.out.println(String.format("%s: %d chunks deleted", fileName, affected));
+        return true;
     }
 
     /**

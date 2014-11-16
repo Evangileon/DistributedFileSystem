@@ -134,6 +134,7 @@ public class FileClient {
 
     /**
      * Read all data from chunk
+     *
      * @param fileServerID file server ID
      * @param fileName     file name demanded
      * @param chunkID      chunk ID for the file
@@ -203,7 +204,7 @@ public class FileClient {
      * @param chunksLocation file server ID
      * @return concatenated data
      */
-    public String readData(String fileName, int offset, int length, List<Integer> chunksToScan, List<Integer> chunksLocation) {
+    private String readData(String fileName, int offset, int length, List<Integer> chunksToScan, List<Integer> chunksLocation) {
         StringBuilder result = new StringBuilder();
 
         offset = offset % FileChunk.FIXED_SIZE;
@@ -294,7 +295,7 @@ public class FileClient {
      * @param chunkLocations file server list
      * @return size written if success, otherwise -1
      */
-    public int writeData(String data, String fileName, List<Integer> chunks, List<Integer> chunkLocations) {
+    private int writeData(String data, String fileName, List<Integer> chunks, List<Integer> chunkLocations) {
         char[] buffer = data.toCharArray();
 
         Iterator<Integer> chunkItor = chunks.iterator();
@@ -373,7 +374,7 @@ public class FileClient {
             e.printStackTrace();
         }
 
-        return 0;
+        return -1;
     }
 
 
@@ -387,7 +388,7 @@ public class FileClient {
      * @param chunkLocations file server list
      * @return size written if success, otherwise -1
      */
-    public int appendData(String data, String fileName, int firstOffset, List<Integer> chunks, List<Integer> chunkLocations) {
+    private int appendData(String data, String fileName, int firstOffset, List<Integer> chunks, List<Integer> chunkLocations) {
         if (chunks.size() == 0 || firstOffset < 0 || firstOffset >= FileChunk.FIXED_SIZE) {
             return 0;
         }
@@ -442,7 +443,7 @@ public class FileClient {
      * @param clientSock established socket
      * @return 0 if success, -1 if fail
      */
-    public int sendRequestToMeta(RequestEnvelop request, Socket clientSock) {
+    private int sendRequestToMeta(RequestEnvelop request, Socket clientSock) {
         try {
             ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
             output.writeObject(request);
@@ -462,7 +463,7 @@ public class FileClient {
      * @param clientSock established socket
      * @return response body
      */
-    public ResponseEnvelop receiveResponseFromMeta(Socket clientSock) {
+    private ResponseEnvelop receiveResponseFromMeta(Socket clientSock) {
         ResponseEnvelop response = null;
         try {
             ObjectInputStream input = new ObjectInputStream(clientSock.getInputStream());
