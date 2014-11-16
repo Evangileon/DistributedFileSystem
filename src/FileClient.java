@@ -316,10 +316,9 @@ public class FileClient {
      * @param fileServerID file server ID
      * @param fileName file name
      * @param chunkID chunk ID in the file server in the chunk
-     * @param offset offset in chunk
      * @return actual size appended if success, otherwise -1
      */
-    private int appendChunkData(char[] data, int fileServerID, String fileName, int chunkID, int offset) {
+    private int appendChunkData(char[] data, int fileServerID, String fileName, int chunkID) {
         FileServer fileServer = allFileServerList.get(fileServerID);
         if (fileServer == null) {
             return -1;
@@ -344,7 +343,7 @@ public class FileClient {
             input.close();
             fileSock.close();
 
-            if (response.params.size() < 1) {
+            if (response.params == null || response.params.size() < 1) {
                 return -1;
             }
 
@@ -377,6 +376,7 @@ public class FileClient {
         }
 
         char[] buffer = data.toCharArray();
+        int bytesWritten = 0;
 
         Iterator<Integer> chunkItor = chunks.iterator();
         Iterator<Integer> locationItor = chunkLocations.iterator();
@@ -385,10 +385,11 @@ public class FileClient {
         int chunkID = chunkItor.next();
         int location = locationItor.next();
         char[] dataToWrite = Arrays.copyOfRange(buffer, 0, Math.min(FileChunk.FIXED_SIZE - firstOffset, data.length()));
-        int ret = appendChunkData(dataToWrite, location, fileName, chunkID, firstOffset % FileChunk.FIXED_SIZE);
+        int ret = appendChunkData(dataToWrite, location, fileName, chunkID);
         if (ret < 0) {
             return -1;
         }
+        bytesWritten += ret;
 
         // other chunks
         int start = FileChunk.FIXED_SIZE;
@@ -411,9 +412,10 @@ public class FileClient {
             if (ret < 0) {
                 return -1;
             }
+            bytesWritten += ret;
         }
 
-        return 0;
+        return bytesWritten;
     }
 
     /**

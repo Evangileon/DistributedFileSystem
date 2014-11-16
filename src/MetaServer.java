@@ -714,6 +714,8 @@ public class MetaServer {
                     response.setChunksToScan(chunkList);
                     response.setChunksLocation(chunkLocationList);
                 }
+
+                System.out.println("Number of chunks affected: " + chunkList.size());
                 ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
                 output.writeObject(response);
                 output.flush();
@@ -921,6 +923,8 @@ public class MetaServer {
         return FileClient.SUCCESS;
     }
 
+    final Random random = new Random();
+
     /**
      * Append data to file, may update last non-full chunk
      *
@@ -949,7 +953,6 @@ public class MetaServer {
 
         // then append entirely new chunks
         int newLastChunk = ((length - lastRemain) - 1) / FileChunk.FIXED_SIZE;
-        Random random = new Random();
 
         Integer[] idArray = new Integer[allFileServerList.size()];
         idArray = allFileServerList.keySet().toArray(idArray);
@@ -969,8 +972,6 @@ public class MetaServer {
             int loc = locationItor.next();
             addToPendingList(fileName, chunk, loc);
         }
-
-        System.out.println("Number of chunks affected: " + chunkList.size());
 
         return FileChunk.FIXED_SIZE - lastRemain;
     }
