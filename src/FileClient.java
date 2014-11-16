@@ -38,7 +38,7 @@ public class FileClient {
     public int execute(String[] params) {
         Socket clientSock;
         try {
-            System.out.println("Client connect to meta server: " + metaHostName + ":" + metaClientPort);
+            //System.out.println("Client connect to meta server: " + metaHostName + ":" + metaClientPort);
             clientSock = new Socket(metaHostName, metaClientPort);
         } catch (IOException e) {
             e.printStackTrace();
@@ -98,7 +98,7 @@ public class FileClient {
             case 'w':
                 fileName = response.requestCopy.fileName;
                 int ret = writeData(params[params.length - 1], fileName, response.chunksToScan, response.chunksLocation);
-                if (ret >= 0) {
+                if (ret == params[params.length - 1].length()) {
                     System.out.println("Write success");
                 } else {
                     System.out.println("Failure");
@@ -108,7 +108,7 @@ public class FileClient {
             case 'a':
                 fileName = response.requestCopy.fileName;
                 int ret1 = appendData(params[params.length - 1], fileName, Integer.valueOf(response.params.get(0)), response.chunksToScan, response.chunksLocation);
-                if (ret1 >= 0) {
+                if (ret1 == params[params.length - 1].length()) {
                     System.out.println("Append success");
                 } else {
                     System.out.println("Failure");

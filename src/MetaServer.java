@@ -952,8 +952,14 @@ public class MetaServer {
             chunkLocationList.add(getLocationOfLastChunkOfFile(fileName));
         }
 
+        int dataRemain = length - lastRemain;
+        if (dataRemain <= 0) {
+            // all data arranged
+            return FileChunk.FIXED_SIZE - lastRemain;
+        }
+
         // then append entirely new chunks
-        int newLastChunk = ((length - lastRemain) - 1) / FileChunk.FIXED_SIZE;
+        int newLastChunk = lastChunk + 1 + (dataRemain - 1) / FileChunk.FIXED_SIZE;
 
         Integer[] idArray = new Integer[allFileServerList.size()];
         idArray = allFileServerList.keySet().toArray(idArray);
