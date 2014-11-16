@@ -399,7 +399,7 @@ public class FileClient {
         bytesWritten += ret;
 
         // other chunks
-        int start = FileChunk.FIXED_SIZE;
+        int start = bytesWritten;
         int end;
         while (chunkItor.hasNext()) {
             chunkID = chunkItor.next();
