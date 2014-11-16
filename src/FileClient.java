@@ -36,6 +36,8 @@ public class FileClient {
     }
 
     public int execute(String[] params) {
+        int status = 0;
+
         Socket clientSock;
         try {
             //System.out.println("Client connect to meta server: " + metaHostName + ":" + metaClientPort);
@@ -79,7 +81,6 @@ public class FileClient {
         }
 
         //System.out.println("Response UUID: " + response.uuid.toString());
-        int chunkID;
         int offset;
         int length;
         String fileName;
@@ -93,6 +94,9 @@ public class FileClient {
                 String data = readData(fileName, offset, length, response.chunksToScan, response.chunksLocation);
                 if (data != null) {
                     System.out.println(data);
+                } else {
+                    System.out.println("Read failure");
+                    status = -1;
                 }
                 break;
             case 'w':
@@ -102,6 +106,7 @@ public class FileClient {
                     System.out.println("Write success");
                 } else {
                     System.out.println("Failure");
+                    status = -1;
                 }
 
                 break;
@@ -112,6 +117,7 @@ public class FileClient {
                     System.out.println("Append success");
                 } else {
                     System.out.println("Failure");
+                    status = -1;
                 }
 
                 break;
@@ -123,17 +129,18 @@ public class FileClient {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return 0;
+        return status;
     }
 
     /**
      * Read all data from chunk
-     *
      * @param fileServerID file server ID
      * @param fileName     file name demanded
      * @param chunkID      chunk ID for the file
      * @return data if success, otherwise null
      */
+    @Deprecated
+    @SuppressWarnings("unused")
     private char[] readChunkData(int fileServerID, String fileName, int chunkID) {
         return readChunkData(fileServerID, fileName, chunkID, 0, FileChunk.FIXED_SIZE);
     }
@@ -171,6 +178,9 @@ public class FileClient {
             input.close();
             fileSock.close();
 
+            if (response.error < 0) {
+                return null;
+            }
             return response.data;
 
         } catch (IOException e) {
@@ -216,7 +226,7 @@ public class FileClient {
             if (more != null) {
                 result.append(more);
             } else {
-                System.out.println("Failure");
+                //System.out.println("Failure");
                 return null;
             }
 
@@ -574,10 +584,13 @@ public class FileClient {
             while ((line = reader.readLine()) != null && !line.equals("")) {
                 String[] params = line.split("\\|");
 
-                int error = client.execute(params);
-                if (error < 0) {
-                    System.out.println("Failure: " + error);
-                }
+                int tries = 2;
+                do {
+                    int error = client.execute(params);
+                    if (error < 0) {
+                        System.out.println("Failure: " + error);
+                    }
+                } while ((--tries) > 0);
 
                 Thread.sleep(2000);
             }

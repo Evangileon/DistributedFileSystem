@@ -709,7 +709,7 @@ public class MetaServer {
                         System.out.println("Unknown command: " + cmd);
                 }
 
-                if (error != 0) {
+                if (error < 0) {
                     response.setError(error);
                 } else {
                     response.setChunksToScan(chunkList);
