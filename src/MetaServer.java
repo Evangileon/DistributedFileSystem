@@ -924,11 +924,20 @@ public class MetaServer {
             request.params.add(Integer.toString(chunkList.get(0)));
             output.writeObject(request);
             output.flush();
-            output.close();
-            //requestSock.close();
+
+            ObjectInputStream input = new ObjectInputStream(requestSock.getInputStream());
+            ResponseEnvelop response = (ResponseEnvelop) input.readObject();
+            if (response.error != 0) {
+                System.out.println("Meta server create file entry on " + fileServer.id + " error:  " + response.error);
+            }
+
+            input.close();
+
         } catch (IOException e) {
             e.printStackTrace();
             return FileClient.FILE_SERVER_NOT_AVAILABLE;
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
 
         return FileClient.SUCCESS;

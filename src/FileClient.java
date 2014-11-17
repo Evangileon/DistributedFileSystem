@@ -367,7 +367,6 @@ public class FileClient {
                 return -1;
             }
 
-            input.close();
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
