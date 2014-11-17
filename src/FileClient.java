@@ -601,6 +601,7 @@ public class FileClient {
                     } else {
                         break;
                     }
+                    Thread.sleep(2000);
                 } while ((--tries) > 0);
 
                 Thread.sleep(2000);
