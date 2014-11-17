@@ -581,8 +581,11 @@ public class FileClient {
         try {
             while ((line = reader.readLine()) != null && !line.equals("")) {
                 String[] params = line.split("\\|");
+                if (params.length < 2) {
+                    continue;
+                }
 
-                int tries = 2;
+                int tries = 3;
                 do {
                     int error = client.execute(params);
                     if (error < 0) {

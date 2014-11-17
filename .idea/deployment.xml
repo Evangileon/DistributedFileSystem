@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" serverName="CS2">
+  <component name="PublishConfigData" serverName="CS2" exclude=".svn;.cvs;.idea;.DS_Store;.git;.hg;out">
     <serverData>
       <paths name="CS2">
         <serverdata>
