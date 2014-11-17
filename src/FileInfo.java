@@ -20,6 +20,16 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
 
     public void setFileDir(String fileDir) {
         this.fileDir = fileDir;
+
+        File dir = new File(this.fileDir);
+        if (!dir.exists()) {
+            dir.mkdir();
+        }
+
+        if (!dir.isDirectory()) {
+            dir.delete();
+            dir.mkdir();
+        }
     }
 
     public void recoverFileInfoFromDisk() {
