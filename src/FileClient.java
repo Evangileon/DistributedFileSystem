@@ -205,6 +205,10 @@ public class FileClient {
      * @return concatenated data
      */
     private String readData(String fileName, int offset, int length, List<Integer> chunksToScan, List<Integer> chunksLocation) {
+        if (chunksLocation == null || chunksToScan == null) {
+            return null;
+        }
+
         StringBuilder result = new StringBuilder();
 
         offset = offset % FileChunk.FIXED_SIZE;
@@ -296,6 +300,10 @@ public class FileClient {
      * @return size written if success, otherwise -1
      */
     private int writeData(String data, String fileName, List<Integer> chunks, List<Integer> chunkLocations) {
+        if (chunks == null || chunkLocations == null) {
+            return -1;
+        }
+
         char[] buffer = data.toCharArray();
 
         Iterator<Integer> chunkItor = chunks.iterator();

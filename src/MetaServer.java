@@ -48,6 +48,8 @@ public class MetaServer {
 
     // store necessary information about file servers
     final TreeMap<Integer, FileServer> allFileServerList = new TreeMap<>();
+    // store the availability of file servers
+    final TreeMap<Integer, Boolean> allFileServerAvail = new TreeMap<>();
 
     // latest time the file server with id send heartbeat to meta server
     final Map<Integer, Long> fileServerTouch = Collections.synchronizedMap(new HashMap<Integer, Long>());
@@ -287,6 +289,11 @@ public class MetaServer {
 
         System.out.println("File server fail three times: " + id);
 
+        // file server in unavailable
+        synchronized (allFileServerAvail) {
+            allFileServerAvail.put(id, false);
+        }
+
         // update availability
         synchronized (fileChunkAvailableMap) {
             FileInfo fileInfo = fileServerInfoMap.get(id);
@@ -310,7 +317,6 @@ public class MetaServer {
                 }
             }
         }
-
     }
 
     /**
@@ -330,7 +336,12 @@ public class MetaServer {
     private void fileServerHeartbeatTouch(int id) {
         // set latest time that file server touch to current time
         Long currentTime = System.currentTimeMillis();
-        fileServerTouch.put(id, currentTime);
+        synchronized (fileServerTouch) {
+            fileServerTouch.put(id, currentTime);
+        }
+        synchronized (allFileServerAvail) {
+            allFileServerAvail.put(id, true);
+        }
     }
 
     /**
@@ -578,7 +589,6 @@ public class MetaServer {
 
                     // update file chunk information in meta server
                     synchronizeWithMap(this.id, fileInfo);
-
 
                     // check and release pending chunks, these chunks are already in file servers
                     releasePendingChunks(this.id, fileInfo);
@@ -896,8 +906,16 @@ public class MetaServer {
         int lastChunk = (length - 1) / FileChunk.FIXED_SIZE;
         Random random = new Random();
 
-        Integer[] idArray = new Integer[allFileServerList.size()];
-        idArray = allFileServerList.keySet().toArray(idArray);
+        // only distribute to available file servers
+        ArrayList<Integer> availFileServers = new ArrayList<>();
+        for (Integer key : allFileServerList.keySet()) {
+            if (allFileServerAvail.containsKey(key) && allFileServerAvail.get(key)) {
+                availFileServers.add(key);
+            }
+        }
+
+        Integer[] idArray = new Integer[availFileServers.size()];
+        idArray = availFileServers.toArray(idArray);
 
         // randomly distribute chunks
         for (int i = 0; i <= lastChunk; i++) {
