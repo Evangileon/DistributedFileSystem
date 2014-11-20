@@ -18,7 +18,6 @@ import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 import java.io.*;
-import java.lang.reflect.Field;
 import java.net.*;
 import java.util.*;
 
@@ -38,6 +37,8 @@ public class MetaServer {
     ServerSocket receiveHeartbeatSock;
     // socket to listen to client requests
     ServerSocket receiveRequestSock;
+    // socket to listen to ACKs
+    ServerSocket receiveAckSock;
 
     // String -> list of Chunks -> location
     // map all chunks of a file to file servers
@@ -78,6 +79,10 @@ public class MetaServer {
 
     public MetaServer(Node serverNode) {
         parseXMLToConfigMetaServer(serverNode);
+    }
+
+    public synchronized void setTerminated(boolean terminated) {
+        this.terminated = terminated;
     }
 
     /**
@@ -217,15 +222,21 @@ public class MetaServer {
             receiveHeartbeatSock = new ServerSocket(receiveHeartbeatPort);
         } catch (IOException e) {
             e.printStackTrace();
+            System.exit(-1);
         }
 
         Thread heartbeatHandleThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 while (true) {
+
+                    if (terminated) {
+                        break;
+                    }
+
                     try {
                         Socket fileServerSock = receiveHeartbeatSock.accept();
-                        int id = identifyHeartbeatConnection(fileServerSock);
+                        int id = identifyConnection(fileServerSock);
                         if (id < 0) {
                             System.out.println("Unknown address; " + fileServerSock.getInetAddress());
                             continue;
@@ -241,6 +252,7 @@ public class MetaServer {
                     } catch (IOException e) {
                         if (e instanceof SocketException) {
                             System.out.println(e.toString());
+                            setTerminated(true);
                             break;
                         }
 
@@ -262,13 +274,18 @@ public class MetaServer {
             receiveRequestSock = new ServerSocket(clientPort);
         } catch (IOException e) {
             e.printStackTrace();
-            return;
+            System.exit(-1);
         }
 
         Thread requestHandleThread = new Thread(new Runnable() {
             @Override
             public void run() {
+
                 while (true) {
+                    if (terminated) {
+                        break;
+                    }
+
                     try {
                         Socket clientSock = receiveRequestSock.accept();
                         System.out.println("Receive request from: " + clientSock.getInetAddress().toString());
@@ -280,6 +297,7 @@ public class MetaServer {
                     } catch (IOException e) {
 
                         if (e instanceof SocketException) {
+                            setTerminated(true);
                             break;
                         }
 
@@ -295,13 +313,72 @@ public class MetaServer {
     }
 
     /**
+     * Create a new thread to listen to all ACKs.
+     */
+    private void prepareToReceiveACK() {
+        try {
+            receiveAckSock = new ServerSocket(this.ackPort);
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+
+        Thread ackThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+
+                    if (terminated) {
+                        break;
+                    }
+
+                    try {
+                        Socket ackSock = receiveAckSock.accept();
+                        ObjectInputStream input = new ObjectInputStream(ackSock.getInputStream());
+                        ACKEnvelop ack = (ACKEnvelop) input.readObject();
+
+                        int remoteID = identifyConnection(ackSock);
+
+                        // update file chunk information in meta server
+                        synchronizeWithMap(remoteID, ack.fileInfo);
+
+                        // check and release pending chunks, these chunks are already in file servers
+                        releasePendingChunks(remoteID, ack.fileInfo);
+
+                        ACKEnvelop ackResponse = ACKEnvelop.metaServerAck(ack.ackNo);
+
+                        ObjectOutputStream output = new ObjectOutputStream(ackSock.getOutputStream());
+                        output.writeObject(ackResponse);
+                        output.flush();
+                        output.close();
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+
+                        if (e instanceof SocketException) {
+                            setTerminated(true);
+                            break;
+                        }
+                    } catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                        System.exit(-1);
+                    }
+                }
+            }
+        });
+
+        ackThread.setDaemon(true);
+        ackThread.start();
+    }
+
+    /**
      * Search the remote hostname of new accepted socket on configuration files, to identify
      * the heartbeat connection.
      *
      * @param fileServerSock the newly accepted socket by heartbeat server socket
      * @return the id of the file server server socket
      */
-    private int identifyHeartbeatConnection(Socket fileServerSock) {
+    private int identifyConnection(Socket fileServerSock) {
         for (Map.Entry<Integer, FileServer> pair : allFileServerList.entrySet()) {
             if (pair.getValue().fileServerAddress.equals(fileServerSock.getInetAddress())) {
                 return pair.getKey();
@@ -452,7 +529,7 @@ public class MetaServer {
      * the information according to file chunk information carried
      * by heartbeat
      *
-     * @param id       file server identified by identifyHeartbeatConnection
+     * @param id       file server identified by identifyConnection
      * @param fileInfo heartbeat carrying file chunk information
      */
     private void synchronizeWithMap(int id, FileInfo fileInfo) {
@@ -607,6 +684,10 @@ public class MetaServer {
 
             System.out.println("Enter meta server heartbeat receive loop");
             while (true) {
+                if (terminated) {
+                    break;
+                }
+
                 try {
                     InputStream tcpFlow = fileServerSock.getInputStream();
                     ObjectInputStream objectInput = new ObjectInputStream(tcpFlow);
@@ -629,7 +710,7 @@ public class MetaServer {
 
                 } catch (IOException | ClassNotFoundException e) {
                     e.printStackTrace();
-
+                    setTerminated(true);
                     break;
                 }
             }
@@ -643,6 +724,7 @@ public class MetaServer {
         }
     }
 
+    @SuppressWarnings("unused")
     private void printFileChunkMap() {
         System.out.println("File Chunk Map:");
         for (Map.Entry<String, List<Integer>> pair : fileChunkMap.entrySet()) {
@@ -655,6 +737,7 @@ public class MetaServer {
         }
     }
 
+    @SuppressWarnings("unused")
     private void printAvailabilityMap() {
         System.out.println("File Chunk Availability Map:");
         for (Map.Entry<String, List<Boolean>> pair : fileChunkAvailableMap.entrySet()) {
@@ -1114,16 +1197,6 @@ public class MetaServer {
         return true;
     }
 
-    /**
-     * Thread to handle ACKs sent from file servers or clients
-     */
-    class HandleAckEntity implements Runnable {
-
-        @Override
-        public void run() {
-
-        }
-    }
 
     /**
      * Run before any procedure
@@ -1151,6 +1224,8 @@ public class MetaServer {
         prepareToReceiveClientRequest();
 
         prepareToReceiveHeartbeat();
+
+        prepareToReceiveACK();
 
         keepCheckingLivenessOfHeartbeat();
     }
