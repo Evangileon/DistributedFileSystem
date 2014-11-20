@@ -5,6 +5,7 @@
         <hostname>dc02.utdallas.edu</hostname>
         <receiveHeartbeatPort>50001</receiveHeartbeatPort>
         <clientPort>50003</clientPort>
+        <ackPort>50005</ackPort>
     </metaServer>
 
     <fileServers>

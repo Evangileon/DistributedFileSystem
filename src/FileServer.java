@@ -133,20 +133,22 @@ public class FileServer {
                 continue;
             }
 
-            if (oneConfig.getNodeName().equals("id")) {
-                this.id = Integer.valueOf(oneConfig.getTextContent());
+            String nodeName = oneConfig.getNodeName();
+            String text = oneConfig.getTextContent();
+            if (nodeName.equals("id")) {
+                this.id = Integer.valueOf(text);
             }
-            if (oneConfig.getNodeName().equals("hostname")) {
-                this.hostname = oneConfig.getTextContent();
+            if (nodeName.equals("hostname")) {
+                this.hostname = text;
             }
-            if (oneConfig.getNodeName().equals("receiveMetaFilePort")) {
-                this.receiveMetaFilePort = Integer.parseInt(oneConfig.getTextContent());
+            if (nodeName.equals("receiveMetaFilePort")) {
+                this.receiveMetaFilePort = Integer.parseInt(text);
             }
-            if (oneConfig.getNodeName().equals("requestFilePort")) {
-                this.requestFilePort = Integer.parseInt(oneConfig.getTextContent());
+            if (nodeName.equals("requestFilePort")) {
+                this.requestFilePort = Integer.parseInt(text);
             }
-            if (oneConfig.getNodeName().equals("storageDir")) {
-                this.storageDir = oneConfig.getTextContent();
+            if (nodeName.equals("storageDir")) {
+                this.storageDir = text;
             }
         }
     }

@@ -6,6 +6,7 @@
       <xs:element type="xs:string" name="hostname"/>
       <xs:element type="xs:integer" name="receiveHeartbeatPort"/>
       <xs:element type="xs:integer" name="clientPort"/>
+      <xs:element type="xs:integer" name="ackPort"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="configsType">

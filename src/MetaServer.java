@@ -7,10 +7,18 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.Source;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamSource;
+import javax.xml.validation.Schema;
+import javax.xml.validation.SchemaFactory;
+import javax.xml.validation.Validator;
 import java.io.*;
+import java.lang.reflect.Field;
 import java.net.*;
 import java.util.*;
 
@@ -23,6 +31,8 @@ public class MetaServer {
     int receiveHeartbeatPort;
     // port to listen to client requests
     int clientPort;
+    // port to receive ACKs
+    int ackPort;
 
     // socket to listen to heartbeat connections
     ServerSocket receiveHeartbeatSock;
@@ -105,6 +115,17 @@ public class MetaServer {
             }
             doc.normalize();
 
+            // create a SchemaFactory capable of understanding WXS schemas
+            SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+
+            // load a WXS schema, represented by a Schema instance
+            Source schemaFile = new StreamSource(new File(filename.split("\\.")[0] + ".xsd"));
+            Schema schema = factory.newSchema(schemaFile);
+            Validator validator = schema.newValidator();
+
+            // validate DOM
+            validator.validate(new DOMSource(doc));
+
             // config for meta server
             Node metaServerNode = doc.getElementsByTagName("metaServer").item(0);
             parseXMLToConfigMetaServer(metaServerNode);
@@ -112,6 +133,10 @@ public class MetaServer {
             parseXMLToConfigFileServers(doc);
 
         } catch (ParserConfigurationException | SAXException | IOException e) {
+            if (e instanceof SAXException) {
+                System.out.println("XML is not valid");
+                System.exit(0);
+            }
             e.printStackTrace();
         }
     }
@@ -156,6 +181,7 @@ public class MetaServer {
      * @param serverNode root element node of meta server in XML config file
      */
     private void parseXMLToConfigMetaServer(Node serverNode) {
+
         NodeList serverConfig = serverNode.getChildNodes();
 
         for (int j = 0; j < serverConfig.getLength(); j++) {
@@ -164,14 +190,19 @@ public class MetaServer {
                 continue;
             }
 
-            if (oneConfig.getNodeName().equals("hostname")) {
-                this.hostname = oneConfig.getTextContent();
+            String nodeName = oneConfig.getNodeName();
+            String text = oneConfig.getTextContent();
+            if (nodeName.equals("hostname")) {
+                this.hostname = text;
             }
-            if (oneConfig.getNodeName().equals("receiveHeartbeatPort")) {
-                this.receiveHeartbeatPort = Integer.parseInt(oneConfig.getTextContent());
+            if (nodeName.equals("receiveHeartbeatPort")) {
+                this.receiveHeartbeatPort = Integer.parseInt(text);
             }
-            if (oneConfig.getNodeName().equals("clientPort")) {
-                this.clientPort = Integer.parseInt(oneConfig.getTextContent());
+            if (nodeName.equals("clientPort")) {
+                this.clientPort = Integer.parseInt(text);
+            }
+            if (nodeName.equals("ackPort")) {
+                this.ackPort = Integer.parseInt(text);
             }
         }
     }
@@ -1081,6 +1112,17 @@ public class MetaServer {
 
         System.out.println(String.format("%s: %d chunks deleted", fileName, affected));
         return true;
+    }
+
+    /**
+     * Thread to handle ACKs sent from file servers or clients
+     */
+    class HandleAckEntity implements Runnable {
+
+        @Override
+        public void run() {
+
+        }
     }
 
     /**

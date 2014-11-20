@@ -27,6 +27,7 @@ public class FileClient {
 
     String metaHostName; // hostname of meta server
     int metaClientPort; // port of meta server to receive client request
+    int metaACKPort; // port of meta server to receive ACK
 
     //Socket clientSock;
 
@@ -561,11 +562,16 @@ public class FileClient {
                 continue;
             }
 
-            if (oneConfig.getNodeName().equals("hostname")) {
-                this.metaHostName = oneConfig.getTextContent();
+            String nodeName = oneConfig.getNodeName();
+            String text = oneConfig.getTextContent();
+            if (nodeName.equals("hostname")) {
+                this.metaHostName = text;
             }
-            if (oneConfig.getNodeName().equals("clientPort")) {
-                this.metaClientPort = Integer.parseInt(oneConfig.getTextContent());
+            if (nodeName.equals("clientPort")) {
+                this.metaClientPort = Integer.parseInt(text);
+            }
+            if (nodeName.equals("ackPort")) {
+                this.metaACKPort = Integer.parseInt(text);
             }
         }
     }
