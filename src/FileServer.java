@@ -568,6 +568,17 @@ public class FileServer {
         return actualLengthAppended;
     }
 
+    private boolean sendACKTOMeta() {
+        try {
+            Socket toMeta = new Socket(metaServer.metaServerAddress, metaServer.ackPort);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+        return false;
+    }
+
     /**
      * Run this before any procedure
      */

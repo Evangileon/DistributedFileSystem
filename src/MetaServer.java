@@ -1050,7 +1050,7 @@ public class MetaServer {
         // create first chunk, it's empty, and will be filled by client
         FileServer fileServer = allFileServerList.get(chunkLocationList.get(0));
         try {
-            Socket requestSock = new Socket(fileServer.hostname, fileServer.requestFilePort);
+            Socket requestSock = new Socket(fileServer.fileServerAddress, fileServer.requestFilePort);
             ObjectOutputStream output = new ObjectOutputStream(requestSock.getOutputStream());
             RequestEnvelop request = new RequestEnvelop("w", fileName);
             request.params.add(Integer.toString(chunkList.get(0)));
@@ -1167,7 +1167,7 @@ public class MetaServer {
             RequestEnvelop request = new RequestEnvelop("d", fileName);
 
             try {
-                Socket fileSock = new Socket(fileServer.hostname, fileServer.requestFilePort);
+                Socket fileSock = new Socket(fileServer.fileServerAddress, fileServer.requestFilePort);
                 ObjectOutputStream output = new ObjectOutputStream(fileSock.getOutputStream());
                 output.writeObject(request);
                 output.flush();

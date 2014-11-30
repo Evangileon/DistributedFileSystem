@@ -34,6 +34,7 @@ public class FileClient {
     public FileClient(String xmlFile) {
         allFileServerList = new HashMap<>();
         parseXML(xmlFile);
+        resolveAllFileServerAddress();
     }
 
     public int execute(String[] params) {
@@ -134,6 +135,15 @@ public class FileClient {
     }
 
     /**
+     * Resolve all IP address of file servers
+     */
+    private void resolveAllFileServerAddress() {
+        for (Map.Entry<Integer, FileServer> pair : allFileServerList.entrySet()) {
+            pair.getValue().resolveAddress();
+        }
+    }
+
+    /**
      * Read all data from chunk
      *
      * @param fileServerID file server ID
@@ -164,7 +174,7 @@ public class FileClient {
         }
 
         try {
-            Socket fileSock = new Socket(allFileServerList.get(fileServerID).hostname, fileServer.requestFilePort);
+            Socket fileSock = new Socket(allFileServerList.get(fileServerID).fileServerAddress, fileServer.requestFilePort);
             RequestEnvelop request = new RequestEnvelop("r", fileName);
             request.addParam(Integer.toString(chunkID));
             request.addParam(Integer.toString(offset));
@@ -263,7 +273,7 @@ public class FileClient {
         }
 
         try {
-            Socket fileSock = new Socket(fileServer.hostname, fileServer.requestFilePort);
+            Socket fileSock = new Socket(fileServer.fileServerAddress, fileServer.requestFilePort);
             RequestEnvelop request = new RequestEnvelop("w", fileName);
             request.addParam(Integer.toString(chunkID));
             request.setData(data);
@@ -354,7 +364,7 @@ public class FileClient {
         }
 
         try {
-            Socket fileSock = new Socket(fileServer.hostname, fileServer.requestFilePort);
+            Socket fileSock = new Socket(fileServer.fileServerAddress, fileServer.requestFilePort);
             RequestEnvelop request = new RequestEnvelop("a", fileName);
             request.addParam(Integer.toString(chunkID));
             request.setData(data);
@@ -575,7 +585,6 @@ public class FileClient {
             }
         }
     }
-
 
     public static void main(String[] args) {
         BufferedReader reader = null;
