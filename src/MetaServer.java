@@ -20,6 +20,7 @@ import javax.xml.validation.Validator;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MetaServer {
 
@@ -42,17 +43,17 @@ public class MetaServer {
 
     // String -> list of Chunks -> location
     // map all chunks of a file to file servers
-    final Map<String, List<Integer>> fileChunkMap = Collections.synchronizedMap(new HashMap<String, List<Integer>>());
+    final Map<String, List<Integer>> fileChunkMap = new ConcurrentHashMap<>();
     // records the availability  of all chunks of a file
-    final Map<String, List<Boolean>> fileChunkAvailableMap = Collections.synchronizedMap(new HashMap<String, List<Boolean>>());
+    final Map<String, List<Boolean>> fileChunkAvailableMap = new ConcurrentHashMap<>();
 
     // file server id -> file info
     // map the file server id to file information on this file server
-    final Map<Integer, FileInfo> fileServerInfoMap = Collections.synchronizedMap(new HashMap<Integer, FileInfo>());
+    final Map<Integer, FileInfo> fileServerInfoMap = new ConcurrentHashMap<>();
 
     // pending file chunks not send to file servers
     // file name -> hash map to chunk id -> file server id expected to store
-    final Map<String, Map<Integer, Integer>> pendingFileChunks = Collections.synchronizedMap(new HashMap<String, Map<Integer, Integer>>());
+    final Map<String, Map<Integer, Integer>> pendingFileChunks = new ConcurrentHashMap<>();
 
     // fail times of heartbeat correspondent to id
     //final Map<Integer, Integer> fileServerFailTimes = Collections.synchronizedMap(new HashMap<Integer, Integer>());
@@ -63,9 +64,9 @@ public class MetaServer {
     final TreeMap<Integer, Boolean> allFileServerAvail = new TreeMap<>();
 
     // latest time the file server with id send heartbeat to meta server
-    final Map<Integer, Long> fileServerTouch = Collections.synchronizedMap(new HashMap<Integer, Long>());
+    final Map<Integer, Long> fileServerTouch = new ConcurrentHashMap<>();
     // times of haven't receive file server heartbeat
-    final Map<Integer, Integer> fileServerHeartbeatFailTimes = Collections.synchronizedMap(new HashMap<Integer, Integer>());
+    final Map<Integer, Integer> fileServerHeartbeatFailTimes = new ConcurrentHashMap<>();
 
     // termination flag
     boolean terminated = false;
@@ -407,9 +408,9 @@ public class MetaServer {
             FileInfo fileInfo = fileServerInfoMap.get(id);
 
             if (fileInfo != null) {
-                for (Map.Entry<String, ArrayList<FileChunk>> pair : fileInfo) {
+                for (Map.Entry<String, List<FileChunk>> pair : fileInfo) {
                     String fileName = pair.getKey();
-                    ArrayList<FileChunk> fileChunks = pair.getValue();
+                    List<FileChunk> fileChunks = pair.getValue();
 
                     List<Boolean> availableMap;
                     availableMap = fileChunkAvailableMap.get(fileName);
@@ -535,9 +536,9 @@ public class MetaServer {
     private void synchronizeWithMap(int id, FileInfo fileInfo) {
 
         // for each record of file chunks on file server
-        for (Map.Entry<String, ArrayList<FileChunk>> pair : fileInfo) {
+        for (Map.Entry<String, List<FileChunk>> pair : fileInfo) {
             String fileName = pair.getKey();
-            ArrayList<FileChunk> fileChunks = pair.getValue();
+            List<FileChunk> fileChunks = pair.getValue();
 
             List<Integer> chunksOnThisServer;
             // must be mutually exclusive
@@ -641,13 +642,13 @@ public class MetaServer {
      */
     private void releasePendingChunks(int id, FileInfo fileInfo) {
 
-        for (Map.Entry<String, ArrayList<FileChunk>> fileChunksInFileServer : fileInfo) {
+        for (Map.Entry<String, List<FileChunk>> fileChunksInFileServer : fileInfo) {
             String fileName = fileChunksInFileServer.getKey();
             if (!pendingFileChunks.containsKey(fileName)) {
                 continue;
             }
 
-            ArrayList<FileChunk> chunks = fileChunksInFileServer.getValue();
+            List<FileChunk> chunks = fileChunksInFileServer.getValue();
             for (FileChunk chunk : chunks) {
                 int chunkID = chunk.chunkID;
                 // check whether ID equal to keep consistent
@@ -943,7 +944,7 @@ public class MetaServer {
 
         int whereLastChunk = list.get(list.size() - 1);
         // the chunk you demand is in file server whereLastChunk
-        ArrayList<FileChunk> chunks = fileServerInfoMap.get(whereLastChunk).fileChunks.get(fileName);
+        List<FileChunk> chunks = fileServerInfoMap.get(whereLastChunk).fileChunks.get(fileName);
         FileChunk lastChunk = chunks.get(chunks.size() - 1);
         int actualLength = lastChunk.actualLength;
         return FileChunk.FIXED_SIZE - actualLength;

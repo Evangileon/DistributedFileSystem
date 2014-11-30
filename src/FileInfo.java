@@ -2,14 +2,15 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.Serializable;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 
-public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayList<FileChunk>>> {
+public class FileInfo implements Serializable, Iterable<Map.Entry<String, List<FileChunk>>> {
 
     String fileDir;
 
     // file chunks are in increasing order by their id
-    HashMap<String, ArrayList<FileChunk>> fileChunks;
+    final Map<String, List<FileChunk>> fileChunks = new ConcurrentHashMap<>();
 
     public FileInfo() {
     }
@@ -33,9 +34,6 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
     }
 
     public void recoverFileInfoFromDisk() {
-
-        fileChunks = new HashMap<>();
-
 
         File folder = new File(fileDir);
         if (!folder.isDirectory()) {
@@ -73,9 +71,9 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
 
                 FileChunk chunk = new FileChunk(realName, Integer.valueOf(chunkID), actualLength);
                 // add chunk control block
-                ArrayList<FileChunk> oneFile = fileChunks.get(realName);
+                List<FileChunk> oneFile = fileChunks.get(realName);
                 if (oneFile == null) {
-                    oneFile = new ArrayList<>();
+                    oneFile = Collections.synchronizedList(new ArrayList<FileChunk>());
                     fileChunks.put(realName, oneFile);
                 }
                 oneFile.add(chunk);
@@ -84,14 +82,14 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
             }
         }
 
-        for (Map.Entry<String, ArrayList<FileChunk>> pair : fileChunks.entrySet()) {
+        for (Map.Entry<String, List<FileChunk>> pair : fileChunks.entrySet()) {
             // chunks are ordered by id
             Collections.sort(pair.getValue());
         }
     }
 
     public void print() {
-        for (Map.Entry<String, ArrayList<FileChunk>> entry : fileChunks.entrySet()) {
+        for (Map.Entry<String, List<FileChunk>> entry : fileChunks.entrySet()) {
             System.out.print(entry.getKey() + " : ");
             for (FileChunk chunk : entry.getValue()) {
                 System.out.print(chunk + " ");
@@ -105,7 +103,7 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
     }
 
     @Override
-    public Iterator<Map.Entry<String, ArrayList<FileChunk>>> iterator() {
+    public Iterator<Map.Entry<String, List<FileChunk>>> iterator() {
         return fileChunks.entrySet().iterator();
     }
 }

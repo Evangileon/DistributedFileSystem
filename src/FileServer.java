@@ -16,10 +16,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.*;
 
 
 public class FileServer {
@@ -316,32 +313,17 @@ public class FileServer {
                     case 'w':
                         chunkID = Integer.valueOf(request.params.get(0));
                         int actualLength = Helper.charArrayLength(request.data);
-                        FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
-                        //System.out.println(Arrays.toString(request.data));
-                        int size1 = writeChunk(chunk1, request.data);
-                        addToMetaData(chunk1);
-                        // update meta server
-                        sendACKTOMeta();
+                        int size1 = write(fileName, chunkID, actualLength, request.data);
                         response.addParam(Integer.toString(size1));
                         break;
                     case 'a':
                         chunkID = Integer.valueOf(request.params.get(0));
-                        FileChunk chunk2 = getChunk(fileName, chunkID);
-                        FileChunk oldChunk = getChunk(fileName, chunkID);
-                        if (chunk2 == null || oldChunk == null) {
-                            response.setError(FileClient.CHUNK_NOT_AVAILABLE);
-                            break;
-                        }
-                        ret = appendChunk(chunk2, request.data);
-                        if (ret < 0 || ret != request.data.length) {
-                            response.setError(FileClient.FILE_LENGTH_EXCEED);
+                        ret = append(fileName, chunkID, request.data);
+                        if (ret < 0) {
+                            response.setError(ret);
                             break;
                         }
                         response.addParam(Integer.toString(ret));
-                        chunk2.actualLength = oldChunk.actualLength + ret;
-                        updateMetaData(chunk2);
-                        // update meta server
-                        sendACKTOMeta();
                         break;
                     case 'd':
                         String fileNameToDelete = request.fileName;
@@ -377,7 +359,7 @@ public class FileServer {
      * @return chunk if found, otherwise null
      */
     private FileChunk getChunk(String fileName, int chunkID) {
-        ArrayList<FileChunk> chunkMap = fileInfo.fileChunks.get(fileName);
+        List<FileChunk> chunkMap = fileInfo.fileChunks.get(fileName);
         if (chunkMap == null) {
             return null;
         }
@@ -466,6 +448,45 @@ public class FileServer {
         }
     }
 
+    private int write(String fileName, int chunkID, int actualLength, char[] data) {
+        FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
+        //System.out.println(Arrays.toString(request.data));
+        int size;
+        List<FileChunk> fileChunkList = fileInfo.fileChunks.get(fileName);
+        if (fileChunkList == null) {
+            return 0;
+        }
+        synchronized (fileChunkList) {
+            size = writeChunk(chunk1, data);
+        }
+        addToMetaData(chunk1);
+        // update meta server
+        sendACKTOMeta();
+        return size;
+    }
+
+    private int append(String fileName, int chunkID, char[] data) {
+        int ret;
+
+        FileChunk chunk2 = getChunk(fileName, chunkID);
+        FileChunk oldChunk = getChunk(fileName, chunkID);
+        if (chunk2 == null || oldChunk == null) {
+            return FileClient.CHUNK_NOT_AVAILABLE;
+        }
+        List<FileChunk> fileChunkList = fileInfo.fileChunks.get(fileName);
+        synchronized (fileChunkList) {
+            ret = appendChunk(chunk2, data);
+        }
+        if (ret < 0 || ret != data.length) {
+            return FileClient.FILE_LENGTH_EXCEED;
+        }
+        chunk2.actualLength = oldChunk.actualLength + ret;
+        updateMetaData(chunk2);
+        // update meta server
+        sendACKTOMeta();
+        return ret;
+    }
+
     /**
      * Delete all chunks of this file
      *
@@ -473,7 +494,7 @@ public class FileServer {
      * @return chunks affected
      */
     private int deleteFile(String fileName) {
-        ArrayList<FileChunk> chunks = fileInfo.fileChunks.get(fileName);
+        List<FileChunk> chunks = fileInfo.fileChunks.get(fileName);
         if (chunks == null) {
             return 0;
         }
@@ -505,10 +526,10 @@ public class FileServer {
             return;
         }
 
-        synchronized (fileInfo) {
-            ArrayList<FileChunk> chunkMap = fileInfo.fileChunks.get(chunk.realFileName);
+        synchronized (fileInfo.fileChunks) {
+            List<FileChunk> chunkMap = fileInfo.fileChunks.get(chunk.realFileName);
             if (chunkMap == null) {
-                chunkMap = new ArrayList<>();
+                chunkMap = Collections.synchronizedList(new ArrayList<FileChunk>());
                 fileInfo.fileChunks.put(chunk.realFileName, chunkMap);
             }
             chunkMap.add(chunk);
@@ -526,7 +547,7 @@ public class FileServer {
             return;
         }
 
-        ArrayList<FileChunk> list = fileInfo.fileChunks.get(chunk.realFileName);
+        List<FileChunk> list = fileInfo.fileChunks.get(chunk.realFileName);
         if (list == null) {
             return;
         }
@@ -576,6 +597,7 @@ public class FileServer {
 
     /**
      * Send ACK to meta server carrying with chunk information, and receive commit from server
+     *
      * @return true if ACK send to meta and meta response commit. Otherwise false
      */
     private boolean sendACKTOMeta() {
