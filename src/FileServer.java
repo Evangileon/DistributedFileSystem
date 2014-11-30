@@ -320,6 +320,8 @@ public class FileServer {
                         //System.out.println(Arrays.toString(request.data));
                         int size1 = writeChunk(chunk1, request.data);
                         addToMetaData(chunk1);
+                        // update meta server
+                        sendACKTOMeta();
                         response.addParam(Integer.toString(size1));
                         break;
                     case 'a':
@@ -338,11 +340,15 @@ public class FileServer {
                         response.addParam(Integer.toString(ret));
                         chunk2.actualLength = oldChunk.actualLength + ret;
                         updateMetaData(chunk2);
+                        // update meta server
+                        sendACKTOMeta();
                         break;
                     case 'd':
                         String fileNameToDelete = request.fileName;
                         int affected = deleteFile(fileNameToDelete);
                         response.addParam(Integer.toString(affected));
+                        // update meta server
+                        sendACKTOMeta();
                         break;
                     default:
                         System.out.println("Unknown command");
@@ -568,15 +574,33 @@ public class FileServer {
         return actualLengthAppended;
     }
 
+    /**
+     * Send ACK to meta server carrying with chunk information, and receive commit from server
+     * @return true if ACK send to meta and meta response commit. Otherwise false
+     */
     private boolean sendACKTOMeta() {
         try {
-            Socket toMeta = new Socket(metaServer.metaServerAddress, metaServer.ackPort);
-        } catch (IOException e) {
+            Socket toMetaSock = new Socket(metaServer.metaServerAddress, metaServer.ackPort);
+            ACKEnvelop ack = ACKEnvelop.fileServerAck(this.id, this.fileInfo);
+            ObjectOutputStream output = new ObjectOutputStream(toMetaSock.getOutputStream());
+            output.writeObject(ack);
+            output.flush();
+
+            ObjectInputStream input = new ObjectInputStream(toMetaSock.getInputStream());
+            ACKEnvelop ackFromMeta = (ACKEnvelop) input.readObject();
+
+            input.close();
+
+            if (ackFromMeta.type != ACKEnvelop.META_SERVER_ACK || ackFromMeta.ackNo != ack.ackNo) {
+                return false;
+            }
+
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
+            return false;
         }
 
-
-        return false;
+        return true;
     }
 
     /**
