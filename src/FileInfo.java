@@ -88,6 +88,18 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, List<F
         }
     }
 
+    /**
+     * Get the total number of chunks maintained on this server
+     * @return number of chunks
+     */
+    public int totalChunks() {
+        int num = 0;
+        for (List<FileChunk> chunks : fileChunks.values()) {
+            num += chunks.size();
+        }
+        return num;
+    }
+
     public void print() {
         for (Map.Entry<String, List<FileChunk>> entry : fileChunks.entrySet()) {
             System.out.print(entry.getKey() + " : ");

@@ -68,6 +68,9 @@ public class MetaServer {
     // times of haven't receive file server heartbeat
     final Map<Integer, Integer> fileServerHeartbeatFailTimes = new ConcurrentHashMap<>();
 
+    // load balance control
+    LoadBalancer loadBalancer;
+
     // termination flag
     boolean terminated = false;
 
@@ -412,8 +415,7 @@ public class MetaServer {
                     String fileName = pair.getKey();
                     List<FileChunk> fileChunks = pair.getValue();
 
-                    List<Boolean> availableMap;
-                    availableMap = fileChunkAvailableMap.get(fileName);
+                    List<Boolean> availableMap = fileChunkAvailableMap.get(fileName);
                     if (availableMap == null) {
                         availableMap = new ArrayList<>();
                         fileChunkAvailableMap.put(fileName, availableMap);
@@ -427,6 +429,8 @@ public class MetaServer {
             }
         }
     }
+
+
 
     /**
      * Resolve all IP address of file servers
@@ -1198,7 +1202,6 @@ public class MetaServer {
         return true;
     }
 
-
     /**
      * Run before any procedure
      */
@@ -1214,6 +1217,8 @@ public class MetaServer {
             // -1 means never touched
             fileServerHeartbeatFailTimes.put(id, 0);
         }
+
+        loadBalancer = new LoadBalancer(allFileServerList.values());
     }
 
     /**

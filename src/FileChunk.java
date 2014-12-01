@@ -6,6 +6,8 @@ public class FileChunk implements Comparable<FileChunk>, Serializable {
     int chunkID;
     int actualLength;
 
+    int version;
+
     public FileChunk(String realFileName, int chunkID, int actualLength) {
         this.realFileName = realFileName;
         this.chunkID = chunkID;
@@ -13,7 +15,7 @@ public class FileChunk implements Comparable<FileChunk>, Serializable {
     }
 
     public String getChunkName() {
-        return realFileName + "-" + String.format("%08d", chunkID);
+        return realFileName + "-" + String.format("%08d", chunkID) + "-" + String.format("%02d", version);
     }
 
     public String toString() {
