@@ -114,10 +114,6 @@ public class MetaServer {
             parseXMLToConfigFileServers(doc);
 
         } catch (ParserConfigurationException | SAXException | IOException e) {
-            if (e instanceof SAXException) {
-                System.out.println("XML is not valid");
-                System.exit(0);
-            }
             e.printStackTrace();
         }
     }
@@ -1066,16 +1062,6 @@ public class MetaServer {
         return true;
     }
 
-    /**
-     * Thread to handle ACKs sent from file servers or clients
-     */
-    class HandleAckEntity implements Runnable {
-
-        @Override
-        public void run() {
-
-        }
-    }
 
     /**
      * Run before any procedure
