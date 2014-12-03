@@ -23,8 +23,6 @@ public class MetaServer {
     int receiveHeartbeatPort;
     // port to listen to client requests
     int clientPort;
-    // port to receive ACKs
-    int ackPort;
 
     // socket to listen to heartbeat connections
     ServerSocket receiveHeartbeatSock;
@@ -158,7 +156,6 @@ public class MetaServer {
      * @param serverNode root element node of meta server in XML config file
      */
     private void parseXMLToConfigMetaServer(Node serverNode) {
-
         NodeList serverConfig = serverNode.getChildNodes();
 
         for (int j = 0; j < serverConfig.getLength(); j++) {
@@ -1063,9 +1060,6 @@ public class MetaServer {
     }
 
 
-    /**
-     * Run before any procedure
-     */
     private void initialize() {
         resolveAllFileServerAddress();
 
