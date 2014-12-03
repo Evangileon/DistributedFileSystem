@@ -7,18 +7,10 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.Source;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamSource;
-import javax.xml.validation.Schema;
-import javax.xml.validation.SchemaFactory;
-import javax.xml.validation.Validator;
 import java.io.*;
-import java.lang.reflect.Field;
 import java.net.*;
 import java.util.*;
 
@@ -179,19 +171,14 @@ public class MetaServer {
                 continue;
             }
 
-            String nodeName = oneConfig.getNodeName();
-            String text = oneConfig.getTextContent();
-            if (nodeName.equals("hostname")) {
-                this.hostname = text;
+            if (oneConfig.getNodeName().equals("hostname")) {
+                this.hostname = oneConfig.getTextContent();
             }
-            if (nodeName.equals("receiveHeartbeatPort")) {
-                this.receiveHeartbeatPort = Integer.parseInt(text);
+            if (oneConfig.getNodeName().equals("receiveHeartbeatPort")) {
+                this.receiveHeartbeatPort = Integer.parseInt(oneConfig.getTextContent());
             }
-            if (nodeName.equals("clientPort")) {
-                this.clientPort = Integer.parseInt(text);
-            }
-            if (nodeName.equals("ackPort")) {
-                this.ackPort = Integer.parseInt(text);
+            if (oneConfig.getNodeName().equals("clientPort")) {
+                this.clientPort = Integer.parseInt(oneConfig.getTextContent());
             }
         }
     }
