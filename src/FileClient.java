@@ -613,13 +613,17 @@ public class FileClient {
                 do {
                     int error = client.execute(params);
                     if (error < 0) {
-                        System.out.println("Failure: " + error);
+                        System.out.println("Failure: " + error + " , tries remaining" + (tries - 1));
                     } else {
                         break;
                     }
                     Thread.sleep(2000);
-                    System.out.println("Retry times " + (3 - tries - 1));
+                    System.out.println("Retry times " + (3 - tries + 1));
                 } while ((--tries) > 0);
+
+                if (tries == 0) {
+                    System.out.println("Latest command failed");
+                }
 
                 Thread.sleep(2000);
             }
