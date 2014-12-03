@@ -114,7 +114,8 @@ public class FileClient {
             case 'a':
                 fileName = response.requestCopy.fileName;
                 if (response.params == null || response.params.size() == 0) {
-                    System.out.println("Error");
+                    System.out.println("Chunk is not available");
+                    status = -1;
                     break;
                 }
 
