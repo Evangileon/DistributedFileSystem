@@ -1059,7 +1059,9 @@ public class MetaServer {
         return true;
     }
 
-
+    /**
+     * Run before any procedure
+     */
     private void initialize() {
         resolveAllFileServerAddress();
 

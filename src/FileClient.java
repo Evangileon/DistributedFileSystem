@@ -27,7 +27,6 @@ public class FileClient {
 
     String metaHostName; // hostname of meta server
     int metaClientPort; // port of meta server to receive client request
-    int metaACKPort; // port of meta server to receive ACK
 
     //Socket clientSock;
 
