@@ -413,8 +413,18 @@ public class FileClient {
         // first chunk
         int chunkID = chunkItor.next();
         int location = locationItor.next();
+
+        int ret;
         char[] dataToWrite = Arrays.copyOfRange(buffer, 0, Math.min(FileChunk.FIXED_SIZE - firstOffset, data.length()));
-        int ret = appendChunkData(dataToWrite, location, fileName, chunkID);
+
+        if (firstOffset != 0) {
+            // append
+            ret = appendChunkData(dataToWrite, location, fileName, chunkID);
+        } else {
+            // write
+            ret = writeChunkData(dataToWrite, location, fileName, chunkID);
+        }
+
         if (ret < 0) {
             return -1;
         }
