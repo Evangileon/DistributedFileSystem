@@ -113,6 +113,11 @@ public class FileClient {
                 break;
             case 'a':
                 fileName = response.requestCopy.fileName;
+                if (params == null || params.length == 0) {
+                    System.out.println("Error");
+                    break;
+                }
+
                 int ret1 = appendData(params[params.length - 1], fileName, Integer.valueOf(response.params.get(0)), response.chunksToScan, response.chunksLocation);
                 if (ret1 == params[params.length - 1].length()) {
                     System.out.println("Append success");
