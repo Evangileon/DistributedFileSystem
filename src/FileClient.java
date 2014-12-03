@@ -613,7 +613,7 @@ public class FileClient {
                 do {
                     int error = client.execute(params);
                     if (error < 0) {
-                        System.out.println("Failure: " + error + " , tries remaining" + (tries - 1));
+                        System.out.println("Failure: " + error + " , tries remaining: " + (tries - 1));
                     } else {
                         break;
                     }
