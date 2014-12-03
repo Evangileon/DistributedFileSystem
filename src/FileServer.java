@@ -316,7 +316,19 @@ public class FileServer {
                         int actualLength = Helper.charArrayLength(request.data);
                         FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
                         //System.out.println(Arrays.toString(request.data));
-                        int size1 = writeChunk(chunk1, request.data);
+
+                        int size1;
+                        ArrayList<FileChunk> fileChunkList = fileInfo.fileChunks.get(fileName);
+                        synchronized (fileInfo.fileChunks) {
+                            if (fileChunkList == null) {
+                                fileChunkList = new ArrayList<>();
+                                fileInfo.fileChunks.put(fileName, fileChunkList);
+                            }
+                        }
+                        synchronized (fileChunkList) {
+                            size1 = writeChunk(chunk1, request.data);
+                        }
+
                         addToMetaData(chunk1);
                         response.addParam(Integer.toString(size1));
                         break;
@@ -328,7 +340,18 @@ public class FileServer {
                             response.setError(FileClient.CHUNK_NOT_AVAILABLE);
                             break;
                         }
-                        ret = appendChunk(chunk2, request.data);
+
+                        ArrayList<FileChunk> fileChunkList2 = fileInfo.fileChunks.get(fileName);
+                        synchronized (fileInfo.fileChunks) {
+                            if (fileChunkList2 == null) {
+                                fileChunkList2 = new ArrayList<>();
+                                fileInfo.fileChunks.put(fileName, fileChunkList2);
+                            }
+                        }
+                        synchronized (fileChunkList2) {
+                            ret = appendChunk(chunk2, request.data);
+                        }
+
                         if (ret < 0 || ret != request.data.length) {
                             response.setError(FileClient.FILE_LENGTH_EXCEED);
                             break;

@@ -2,6 +2,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.Serializable;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayList<FileChunk>>> {
@@ -9,7 +10,7 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
     String fileDir;
 
     // file chunks are in increasing order by their id
-    HashMap<String, ArrayList<FileChunk>> fileChunks;
+    final Map<String, ArrayList<FileChunk>> fileChunks = new ConcurrentHashMap<>();
 
     public FileInfo() {
     }
@@ -33,9 +34,6 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, ArrayL
     }
 
     public void recoverFileInfoFromDisk() {
-
-        fileChunks = new HashMap<>();
-
 
         File folder = new File(fileDir);
         if (!folder.isDirectory()) {
