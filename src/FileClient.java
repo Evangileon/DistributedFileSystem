@@ -578,16 +578,11 @@ public class FileClient {
                 continue;
             }
 
-            String nodeName = oneConfig.getNodeName();
-            String text = oneConfig.getTextContent();
-            if (nodeName.equals("hostname")) {
-                this.metaHostName = text;
+            if (oneConfig.getNodeName().equals("hostname")) {
+                this.metaHostName = oneConfig.getTextContent();
             }
-            if (nodeName.equals("clientPort")) {
-                this.metaClientPort = Integer.parseInt(text);
-            }
-            if (nodeName.equals("ackPort")) {
-                this.metaACKPort = Integer.parseInt(text);
+            if (oneConfig.getNodeName().equals("clientPort")) {
+                this.metaClientPort = Integer.parseInt(oneConfig.getTextContent());
             }
         }
     }
@@ -624,6 +619,7 @@ public class FileClient {
                         break;
                     }
                     Thread.sleep(2000);
+                    System.out.println("Retry times " + (3 - tries - 1));
                 } while ((--tries) > 0);
 
                 Thread.sleep(2000);
