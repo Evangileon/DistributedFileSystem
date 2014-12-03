@@ -113,7 +113,7 @@ public class FileClient {
                 break;
             case 'a':
                 fileName = response.requestCopy.fileName;
-                if (params == null || params.length == 0) {
+                if (response.params == null || response.params.size() == 0) {
                     System.out.println("Error");
                     break;
                 }

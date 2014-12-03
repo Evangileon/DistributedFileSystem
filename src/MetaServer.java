@@ -726,7 +726,7 @@ public class MetaServer {
 
                         int offseta = append(fileName, length, chunkList, chunkLocationList);
                         if (offseta >= 0) {
-                            response.addParam(Integer.toString(offseta)); // offset
+                            response.addParam(Integer.toString(offseta % FileChunk.FIXED_SIZE)); // offset
                         }
 
                         break;
