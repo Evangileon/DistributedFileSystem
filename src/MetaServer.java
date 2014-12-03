@@ -119,9 +119,9 @@ public class MetaServer {
             SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
 
             // load a WXS schema, represented by a Schema instance
-            Source schemaFile = new StreamSource(new File(filename.split("\\.")[0] + ".xsd"));
-            Schema schema = factory.newSchema(schemaFile);
-            Validator validator = schema.newValidator();
+            //Source schemaFile = new StreamSource(new File(filename.split("\\.")[0] + ".xsd"));
+            //Schema schema = factory.newSchema(schemaFile);
+            //Validator validator = schema.newValidator();
 
             // validate DOM
             //validator.validate(new DOMSource(doc));
@@ -965,29 +965,29 @@ public class MetaServer {
         }
 
         // create first chunk, it's empty, and will be filled by client
-        FileServer fileServer = allFileServerList.get(chunkLocationList.get(0));
-        try {
-            Socket requestSock = new Socket(fileServer.hostname, fileServer.requestFilePort);
-            ObjectOutputStream output = new ObjectOutputStream(requestSock.getOutputStream());
-            RequestEnvelop request = new RequestEnvelop("w", fileName);
-            request.params.add(Integer.toString(chunkList.get(0)));
-            output.writeObject(request);
-            output.flush();
-
-            ObjectInputStream input = new ObjectInputStream(requestSock.getInputStream());
-            ResponseEnvelop response = (ResponseEnvelop) input.readObject();
-            if (response.error != 0) {
-                System.out.println("Meta server create file entry on " + fileServer.id + " error:  " + response.error);
-            }
-
-            input.close();
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            return FileClient.FILE_SERVER_NOT_AVAILABLE;
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
+//        FileServer fileServer = allFileServerList.get(chunkLocationList.get(0));
+//        try {
+//            Socket requestSock = new Socket(fileServer.hostname, fileServer.requestFilePort);
+//            ObjectOutputStream output = new ObjectOutputStream(requestSock.getOutputStream());
+//            RequestEnvelop request = new RequestEnvelop("w", fileName);
+//            request.params.add(Integer.toString(chunkList.get(0)));
+//            output.writeObject(request);
+//            output.flush();
+//
+//            ObjectInputStream input = new ObjectInputStream(requestSock.getInputStream());
+//            ResponseEnvelop response = (ResponseEnvelop) input.readObject();
+//            if (response.error != 0) {
+//                System.out.println("Meta server create file entry on " + fileServer.id + " error:  " + response.error);
+//            }
+//
+//            input.close();
+//
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            return FileClient.FILE_SERVER_NOT_AVAILABLE;
+//        } catch (ClassNotFoundException e) {
+//            e.printStackTrace();
+//        }
 
         return FileClient.SUCCESS;
     }
