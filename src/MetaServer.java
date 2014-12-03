@@ -124,7 +124,7 @@ public class MetaServer {
             Validator validator = schema.newValidator();
 
             // validate DOM
-            validator.validate(new DOMSource(doc));
+            //validator.validate(new DOMSource(doc));
 
             // config for meta server
             Node metaServerNode = doc.getElementsByTagName("metaServer").item(0);
