@@ -27,7 +27,6 @@ public class FileClient {
 
     String metaHostName; // hostname of meta server
     int metaClientPort; // port of meta server to receive client request
-    int metaACKPort; // port of meta server to receive ACK
 
     //Socket clientSock;
 
@@ -114,6 +113,12 @@ public class FileClient {
                 break;
             case 'a':
                 fileName = response.requestCopy.fileName;
+                if (response.params == null || response.params.size() == 0) {
+                    System.out.println("Chunk is not available");
+                    status = -1;
+                    break;
+                }
+
                 int ret1 = appendData(params[params.length - 1], fileName, Integer.valueOf(response.params.get(0)), response.chunksToScan, response.chunksLocation);
                 if (ret1 == params[params.length - 1].length()) {
                     System.out.println("Append success");
@@ -418,8 +423,18 @@ public class FileClient {
         // first chunk
         int chunkID = chunkItor.next();
         int location = locationItor.next();
+
+        int ret;
         char[] dataToWrite = Arrays.copyOfRange(buffer, 0, Math.min(FileChunk.FIXED_SIZE - firstOffset, data.length()));
-        int ret = appendChunkData(dataToWrite, location, fileName, chunkID);
+
+        if (firstOffset != 0) {
+            // append
+            ret = appendChunkData(dataToWrite, location, fileName, chunkID);
+        } else {
+            // write
+            ret = writeChunkData(dataToWrite, location, fileName, chunkID);
+        }
+
         if (ret < 0) {
             return -1;
         }
@@ -572,16 +587,11 @@ public class FileClient {
                 continue;
             }
 
-            String nodeName = oneConfig.getNodeName();
-            String text = oneConfig.getTextContent();
-            if (nodeName.equals("hostname")) {
-                this.metaHostName = text;
+            if (oneConfig.getNodeName().equals("hostname")) {
+                this.metaHostName = oneConfig.getTextContent();
             }
-            if (nodeName.equals("clientPort")) {
-                this.metaClientPort = Integer.parseInt(text);
-            }
-            if (nodeName.equals("ackPort")) {
-                this.metaACKPort = Integer.parseInt(text);
+            if (oneConfig.getNodeName().equals("clientPort")) {
+                this.metaClientPort = Integer.parseInt(oneConfig.getTextContent());
             }
         }
     }
@@ -612,12 +622,17 @@ public class FileClient {
                 do {
                     int error = client.execute(params);
                     if (error < 0) {
-                        System.out.println("Failure: " + error);
+                        System.out.println("Failure: " + error + " , tries remaining: " + (tries - 1));
                     } else {
                         break;
                     }
                     Thread.sleep(2000);
+                    System.out.println("Retry times " + (3 - tries + 1));
                 } while ((--tries) > 0);
+
+                if (tries == 0) {
+                    System.out.println("Latest command failed");
+                }
 
                 Thread.sleep(2000);
             }

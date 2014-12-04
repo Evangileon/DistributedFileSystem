@@ -313,6 +313,22 @@ public class FileServer {
                     case 'w':
                         chunkID = Integer.valueOf(request.params.get(0));
                         int actualLength = Helper.charArrayLength(request.data);
+                        FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
+                        //System.out.println(Arrays.toString(request.data));
+
+                        int size1;
+                        ArrayList<FileChunk> fileChunkList = fileInfo.fileChunks.get(fileName);
+                        synchronized (fileInfo.fileChunks) {
+                            if (fileChunkList == null) {
+                                fileChunkList = new ArrayList<>();
+                                fileInfo.fileChunks.put(fileName, fileChunkList);
+                            }
+                        }
+                        synchronized (fileChunkList) {
+                            size1 = writeChunk(chunk1, request.data);
+                        }
+
+                        addToMetaData(chunk1);
                         int size1 = write(fileName, chunkID, actualLength, request.data);
                         response.addParam(Integer.toString(size1));
                         break;

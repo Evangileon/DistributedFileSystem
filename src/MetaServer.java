@@ -18,6 +18,7 @@ import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 import java.io.*;
+import java.lang.reflect.Field;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -124,17 +125,6 @@ public class MetaServer {
             }
             doc.normalize();
 
-            // create a SchemaFactory capable of understanding WXS schemas
-            SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
-
-            // load a WXS schema, represented by a Schema instance
-            Source schemaFile = new StreamSource(new File(filename.split("\\.")[0] + ".xsd"));
-            Schema schema = factory.newSchema(schemaFile);
-            Validator validator = schema.newValidator();
-
-            // validate DOM
-            validator.validate(new DOMSource(doc));
-
             // config for meta server
             Node metaServerNode = doc.getElementsByTagName("metaServer").item(0);
             parseXMLToConfigMetaServer(metaServerNode);
@@ -142,10 +132,6 @@ public class MetaServer {
             parseXMLToConfigFileServers(doc);
 
         } catch (ParserConfigurationException | SAXException | IOException e) {
-            if (e instanceof SAXException) {
-                System.out.println("XML is not valid");
-                System.exit(0);
-            }
             e.printStackTrace();
         }
     }
@@ -190,7 +176,6 @@ public class MetaServer {
      * @param serverNode root element node of meta server in XML config file
      */
     private void parseXMLToConfigMetaServer(Node serverNode) {
-
         NodeList serverConfig = serverNode.getChildNodes();
 
         for (int j = 0; j < serverConfig.getLength(); j++) {
@@ -429,8 +414,6 @@ public class MetaServer {
             }
         }
     }
-
-
 
     /**
      * Resolve all IP address of file servers
@@ -814,7 +797,7 @@ public class MetaServer {
 
                         int offseta = append(fileName, length, chunkList, chunkLocationList);
                         if (offseta >= 0) {
-                            response.addParam(Integer.toString(offseta)); // offset
+                            response.addParam(Integer.toString(offseta % FileChunk.FIXED_SIZE)); // offset
                         }
 
                         break;
@@ -1052,30 +1035,6 @@ public class MetaServer {
             addToPendingList(fileName, chunk, loc);
         }
 
-        // create first chunk, it's empty, and will be filled by client
-        FileServer fileServer = allFileServerList.get(chunkLocationList.get(0));
-        try {
-            Socket requestSock = new Socket(fileServer.fileServerAddress, fileServer.requestFilePort);
-            ObjectOutputStream output = new ObjectOutputStream(requestSock.getOutputStream());
-            RequestEnvelop request = new RequestEnvelop("w", fileName);
-            request.params.add(Integer.toString(chunkList.get(0)));
-            output.writeObject(request);
-            output.flush();
-
-            ObjectInputStream input = new ObjectInputStream(requestSock.getInputStream());
-            ResponseEnvelop response = (ResponseEnvelop) input.readObject();
-            if (response.error != 0) {
-                System.out.println("Meta server create file entry on " + fileServer.id + " error:  " + response.error);
-            }
-
-            input.close();
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            return FileClient.FILE_SERVER_NOT_AVAILABLE;
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
 
         return FileClient.SUCCESS;
     }
@@ -1200,6 +1159,17 @@ public class MetaServer {
 
         System.out.println(String.format("%s: %d chunks deleted", fileName, affected));
         return true;
+    }
+
+    /**
+     * Thread to handle ACKs sent from file servers or clients
+     */
+    class HandleAckEntity implements Runnable {
+
+        @Override
+        public void run() {
+
+        }
     }
 
     /**
