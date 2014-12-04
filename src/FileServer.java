@@ -68,9 +68,7 @@ public class FileServer {
             }
             doc.normalize();
 
-            // config for meta server
-            Node metaServerNode = doc.getElementsByTagName("metaServer").item(0);
-            metaServer = new MetaServer(metaServerNode);
+
             // config for this file server
             String hostName = InetAddress.getLocalHost().getHostName();
             XPathFactory xPathFactory = XPathFactory.newInstance();
@@ -340,8 +338,7 @@ public class FileServer {
                         String fileNameToDelete = request.fileName;
                         int affected = deleteFile(fileNameToDelete);
                         response.addParam(Integer.toString(affected));
-                        // update meta server
-                        sendACKTOMeta();
+
                         break;
                     default:
                         System.out.println("Unknown command");
@@ -479,7 +476,7 @@ public class FileServer {
 
         addToMetaData(chunk1);
         // update meta server
-        sendACKTOMeta();
+        sendACKTOMeta(chunk1, true);
         return size;
     }
 
@@ -506,7 +503,7 @@ public class FileServer {
         chunk2.actualLength = oldChunk.actualLength + ret;
         updateMetaData(chunk2);
         // update meta server
-        sendACKTOMeta();
+        sendACKTOMeta(chunk2, true);
         return ret;
     }
 
@@ -535,6 +532,9 @@ public class FileServer {
         synchronized (fileInfo) {
             fileInfo.fileChunks.remove(fileName);
         }
+
+        // update meta server
+        sendACKTOMeta(null, true);
 
         return num;
     }
@@ -625,12 +625,26 @@ public class FileServer {
     /**
      * Send ACK to meta server carrying with chunk information, and receive commit from server
      *
+     * @param chunk regarding this chunk
+     * @param success whether or not succeed to write operate this chunk
      * @return true if ACK send to meta and meta response commit. Otherwise false
      */
-    private boolean sendACKTOMeta() {
+    private boolean sendACKTOMeta(FileChunk chunk, boolean success) {
+        FileInfo infoACK;
+        if (chunk == null) {
+            infoACK = this.fileInfo;
+        } else {
+            infoACK = new FileInfo();
+            List<FileChunk> list = Collections.synchronizedList(new ArrayList<FileChunk>());
+            list.add(chunk);
+            infoACK.fileChunks.put(chunk.realFileName, list);
+        }
+
         try {
             Socket toMetaSock = new Socket(metaServer.metaServerAddress, metaServer.ackPort);
-            ACKEnvelop ack = ACKEnvelop.fileServerAck(this.id, this.fileInfo);
+
+
+            ACKEnvelop ack = ACKEnvelop.fileServerAck(this.id, infoACK);
             ObjectOutputStream output = new ObjectOutputStream(toMetaSock.getOutputStream());
             output.writeObject(ack);
             output.flush();

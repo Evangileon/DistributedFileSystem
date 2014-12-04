@@ -1,6 +1,6 @@
 import java.util.*;
 
-public class LoadBalancer  {
+public class LoadBalancer {
 
     final List<FileServer> loadList = Collections.synchronizedList(new ArrayList<FileServer>());
 
@@ -24,6 +24,7 @@ public class LoadBalancer  {
 
     /**
      * Get the id of file server that has least chunks maintain
+     *
      * @return id of file server
      */
     public int getTop() {
@@ -48,6 +49,7 @@ public class LoadBalancer  {
 
     /**
      * File server leave the group of load balancer
+     *
      * @return true if load list contained the file server
      */
     public boolean leave(FileServer fileServer) {

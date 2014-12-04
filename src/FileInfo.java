@@ -90,6 +90,7 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, List<F
 
     /**
      * Get the total number of chunks maintained on this server
+     *
      * @return number of chunks
      */
     public int totalChunks() {

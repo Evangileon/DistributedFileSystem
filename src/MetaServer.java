@@ -326,13 +326,24 @@ public class MetaServer {
                         ObjectInputStream input = new ObjectInputStream(ackSock.getInputStream());
                         ACKEnvelop ack = (ACKEnvelop) input.readObject();
 
-                        int remoteID = identifyConnection(ackSock);
+                        if (ack.type == ACKEnvelop.FILE_SERVER_ACK) {
+                            int remoteID = identifyConnection(ackSock);
 
-                        // update file chunk information in meta server
-                        synchronizeWithMap(remoteID, ack.fileInfo);
+                            // update file chunk information in meta server
+                            synchronizeWithMap(remoteID, ack.fileInfo);
 
-                        // check and release pending chunks, these chunks are already in file servers
-                        releasePendingChunks(remoteID, ack.fileInfo);
+                            // check and release pending chunks, these chunks are already in file servers
+                            releasePendingChunks(remoteID, ack.fileInfo);
+
+                        } else if (ack.type == ACKEnvelop.CLIENT_ACK) {
+
+                            if (ack.chunkMap != null && ack.success == false) {
+                                // client will tell meta to remove these chunks from pending
+                                for (Map.Entry<String, ArrayList<Integer>> pair : ack.chunkMap.entrySet()) {
+                                    removeFromPendingChunks(pair.getKey(), pair.getValue());
+                                }
+                            }
+                        }
 
                         ACKEnvelop ackResponse = ACKEnvelop.metaServerAck(ack.ackNo);
 
@@ -343,11 +354,6 @@ public class MetaServer {
 
                     } catch (IOException e) {
                         e.printStackTrace();
-
-                        if (e instanceof SocketException) {
-                            setTerminated(true);
-                            break;
-                        }
                     } catch (ClassNotFoundException e) {
                         e.printStackTrace();
                         System.exit(-1);
@@ -411,6 +417,9 @@ public class MetaServer {
                         availableMap.set(fileChunk.chunkID, false);
                     }
                 }
+
+                // also remove from pending list
+                releasePendingChunks(id, fileInfo);
             }
         }
     }
@@ -521,6 +530,9 @@ public class MetaServer {
      * @param fileInfo heartbeat carrying file chunk information
      */
     private void synchronizeWithMap(int id, FileInfo fileInfo) {
+        if (fileInfo == null) {
+            return;
+        }
 
         // for each record of file chunks on file server
         for (Map.Entry<String, List<FileChunk>> pair : fileInfo) {
@@ -616,6 +628,26 @@ public class MetaServer {
             synchronized (pendingFileChunks) {
                 pendingFileChunks.remove(fileName);
             }
+        }
+    }
+
+    /**
+     * This function used after append or read fail
+     * @param fileName file name of the chunks belongs to
+     * @param chunkList a list of chunk ID
+     */
+    private void removeFromPendingChunks(String fileName, List<Integer> chunkList) {
+        if (fileName == null || chunkList == null) {
+            return;
+        }
+
+        Map<Integer, Integer> chunks = pendingFileChunks.get(fileName);
+        if (chunks == null) {
+            return;
+        }
+
+        for (Integer chunkID : chunkList) {
+            chunks.remove(chunkID);
         }
     }
 
@@ -1092,6 +1124,7 @@ public class MetaServer {
         while (chunkItor.hasNext()) {
             int chunk = chunkItor.next();
             int loc = locationItor.next();
+            // TODO whether or not add to pending? Because meta add to pending, if client append fail, meta can not detect it, it will always in pending
             addToPendingList(fileName, chunk, loc);
         }
 
@@ -1159,17 +1192,6 @@ public class MetaServer {
 
         System.out.println(String.format("%s: %d chunks deleted", fileName, affected));
         return true;
-    }
-
-    /**
-     * Thread to handle ACKs sent from file servers or clients
-     */
-    class HandleAckEntity implements Runnable {
-
-        @Override
-        public void run() {
-
-        }
     }
 
     /**

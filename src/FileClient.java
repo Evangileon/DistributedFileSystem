@@ -7,7 +7,9 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.*;
+import java.net.InetAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.*;
 
 
@@ -25,15 +27,23 @@ public class FileClient {
 
     HashMap<Integer, FileServer> allFileServerList;
 
-    String metaHostName; // hostname of meta server
-    int metaClientPort; // port of meta server to receive client request
+    //String metaHostName; // hostname of meta server
+    //InetAddress metaServerAddress;
+    //int metaClientPort; // port of meta server to receive client request
+
+    MetaServer metaServer;
 
     //Socket clientSock;
 
     public FileClient(String xmlFile) {
         allFileServerList = new HashMap<>();
         parseXML(xmlFile);
+        resolveMetaAddress();
         resolveAllFileServerAddress();
+    }
+
+    private void resolveMetaAddress() {
+       metaServer.resolveAddress();
     }
 
     public int execute(String[] params) {
@@ -42,7 +52,7 @@ public class FileClient {
         Socket clientSock;
         try {
             //System.out.println("Client connect to meta server: " + metaHostName + ":" + metaClientPort);
-            clientSock = new Socket(metaHostName, metaClientPort);
+            clientSock = new Socket(metaServer.metaServerAddress, metaServer.clientPort);
         } catch (IOException e) {
             e.printStackTrace();
             return META_SERVER_NOT_AVAILABLE;
@@ -93,12 +103,14 @@ public class FileClient {
                 length = Integer.valueOf(response.requestCopy.params.get(1));
 
                 String data = readData(fileName, offset, length, response.chunksToScan, response.chunksLocation);
+
                 if (data != null) {
                     System.out.println(data);
                 } else {
                     System.out.println("Read failure");
                     status = -1;
                 }
+
                 break;
             case 'w':
                 fileName = response.requestCopy.fileName;
@@ -293,10 +305,14 @@ public class FileClient {
             input.close();
             fileSock.close();
 
+            if (response.params.size() == 0) {
+                return response.error != 0 ? response.error : -1;
+            }
+
             if (Integer.valueOf(response.params.get(0)) == data.length) {
                 return data.length;
             } else {
-                return -1;
+                return response.error != 0 ? response.error : -1;
             }
 
         } catch (IOException | ClassNotFoundException e) {
@@ -343,6 +359,8 @@ public class FileClient {
 
             int ret = writeChunkData(dataToWrite, location, fileName, chunkID);
             if (ret < 0) {
+                System.out.println("Write error: " + ret);
+                sendACKTOMeta(fileName, new ArrayList<Integer>(chunks), false);
                 return -1;
             }
         }
@@ -382,13 +400,13 @@ public class FileClient {
             ResponseEnvelop response = (ResponseEnvelop) input.readObject();
 
             if (response.params == null || response.params.size() < 1) {
-                return -1;
+                return response.error != 0 ? response.error : -1;
             }
 
             if (Integer.valueOf(response.params.get(0)) == data.length) {
                 return data.length;
             } else {
-                return -1;
+                return response.error != 0 ? response.error : -1;
             }
 
         } catch (IOException | ClassNotFoundException e) {
@@ -436,6 +454,8 @@ public class FileClient {
         }
 
         if (ret < 0) {
+            sendACKTOMeta(fileName, new ArrayList<>(chunks), false);
+            System.out.println("Append error: " + ret);
             return -1;
         }
         bytesWritten += ret;
@@ -459,7 +479,9 @@ public class FileClient {
 
             ret = writeChunkData(dataToWrite, location, fileName, chunkID);
             if (ret < 0) {
-                return -1;
+                sendACKTOMeta(fileName, new ArrayList<>(chunks), false);
+                System.out.println("Append error: " + ret);
+                return ret;
             }
             bytesWritten += ret;
         }
@@ -508,6 +530,41 @@ public class FileClient {
     }
 
     /**
+     * Send ACK to meta server carrying with chunk information, and receive commit from server
+     *
+     * @param fileName regarding this files
+     * @param chunkList regarding this chunk
+     * @param success whether or not succeed to write operate this chunk
+     * @return true if ACK send to meta and meta response commit. Otherwise false
+     */
+    private boolean sendACKTOMeta(String fileName, ArrayList<Integer> chunkList, boolean success) {
+
+        try {
+            Socket toMetaSock = new Socket(metaServer.metaServerAddress, metaServer.ackPort);
+
+            ACKEnvelop ack = ACKEnvelop.clientAck(fileName, chunkList, success);
+            ObjectOutputStream output = new ObjectOutputStream(toMetaSock.getOutputStream());
+            output.writeObject(ack);
+            output.flush();
+
+            ObjectInputStream input = new ObjectInputStream(toMetaSock.getInputStream());
+            ACKEnvelop ackFromMeta = (ACKEnvelop) input.readObject();
+
+            input.close();
+
+            if (ackFromMeta.type != ACKEnvelop.META_SERVER_ACK || ackFromMeta.ackNo != ack.ackNo) {
+                return false;
+            }
+
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Parse XML to acquire hostname, ports of process
      *
      * @param filename xml
@@ -530,7 +587,8 @@ public class FileClient {
 
             // config for meta server
             Node metaServerNode = doc.getElementsByTagName("metaServer").item(0);
-            parseXMLToConfigMetaServer(metaServerNode);
+            metaServer = new MetaServer(metaServerNode);
+            //parseXMLToConfigMetaServer(metaServerNode);
             // config for file server virtual machine
             parseXMLToConfigFileServers(doc);
 
@@ -570,29 +628,6 @@ public class FileClient {
 
             }
             this.allFileServerList.put(id, new FileServer(id, oneServer));
-        }
-    }
-
-    /**
-     * Get hostname and port of meta
-     *
-     * @param serverNode element node for meta
-     */
-    private void parseXMLToConfigMetaServer(Node serverNode) {
-        NodeList serverConfig = serverNode.getChildNodes();
-
-        for (int j = 0; j < serverConfig.getLength(); j++) {
-            Node oneConfig = serverConfig.item(j);
-            if (oneConfig.getNodeType() != Node.ELEMENT_NODE) {
-                continue;
-            }
-
-            if (oneConfig.getNodeName().equals("hostname")) {
-                this.metaHostName = oneConfig.getTextContent();
-            }
-            if (oneConfig.getNodeName().equals("clientPort")) {
-                this.metaClientPort = Integer.parseInt(oneConfig.getTextContent());
-            }
         }
     }
 

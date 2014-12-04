@@ -1,4 +1,6 @@
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.UUID;
 
 /**
@@ -18,6 +20,8 @@ public class ACKEnvelop implements Serializable {
     final UUID uuid = UUID.randomUUID();
 
     FileInfo fileInfo = null;
+    HashMap<String, ArrayList<Integer>> chunkMap = new HashMap<>();
+    boolean success;
 
     private ACKEnvelop(int type) {
         this.type = type;
@@ -27,16 +31,18 @@ public class ACKEnvelop implements Serializable {
         return (++ackSerie);
     }
 
-    public static ACKEnvelop clientAck() {
+    public static ACKEnvelop clientAck(String fileName, ArrayList<Integer> list, boolean success) {
         ACKEnvelop ack = new ACKEnvelop(CLIENT_ACK);
+        ack.chunkMap.put(fileName, list);
+        ack.success = success;
         ack.ackNo = newAck();
         return ack;
     }
 
-    public static ACKEnvelop fileServerAck(int id, FileInfo fileInfo) {
+    public static ACKEnvelop fileServerAck(int id, FileInfo info) {
         ACKEnvelop ack = new ACKEnvelop(FILE_SERVER_ACK);
         ack.id = id;
-        ack.fileInfo = fileInfo;
+        ack.fileInfo = info;
         ack.ackNo = newAck();
         return ack;
     }
