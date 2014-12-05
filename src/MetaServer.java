@@ -81,9 +81,6 @@ public class MetaServer {
     // load balance control
     LoadBalancer loadBalancer;
 
-    // termination flag
-    boolean terminated = false;
-
     // timeout of heartbeat on established connection
     int timeoutMillis = 5000;
 
@@ -93,10 +90,6 @@ public class MetaServer {
 
     public MetaServer(Node serverNode) {
         parseXMLToConfigMetaServer(serverNode);
-    }
-
-    public synchronized void setTerminated(boolean terminated) {
-        this.terminated = terminated;
     }
 
     /**
@@ -231,10 +224,6 @@ public class MetaServer {
             public void run() {
                 while (true) {
 
-                    if (terminated) {
-                        break;
-                    }
-
                     try {
                         Socket fileServerSock = receiveHeartbeatSock.accept();
                         int id = identifyConnection(fileServerSock);
@@ -253,7 +242,6 @@ public class MetaServer {
                     } catch (IOException e) {
                         if (e instanceof SocketException) {
                             System.out.println(e.toString());
-                            setTerminated(true);
                             break;
                         }
 
@@ -283,9 +271,6 @@ public class MetaServer {
             public void run() {
 
                 while (true) {
-                    if (terminated) {
-                        break;
-                    }
 
                     try {
                         Socket clientSock = receiveRequestSock.accept();
@@ -296,16 +281,10 @@ public class MetaServer {
                         threadResponse.setDaemon(true);
                         threadResponse.start();
                     } catch (IOException e) {
-
-                        if (e instanceof SocketException) {
-                            setTerminated(true);
-                            break;
-                        }
-
                         e.printStackTrace();
                     }
                 }
-                System.out.println("Exit request handle loop");
+                //System.out.println("Exit request handle loop");
             }
         });
 
@@ -328,10 +307,6 @@ public class MetaServer {
             @Override
             public void run() {
                 while (true) {
-
-                    if (terminated) {
-                        break;
-                    }
 
                     try {
                         Socket ackSock = receiveAckSock.accept();
@@ -569,11 +544,6 @@ public class MetaServer {
                         }
                     }
                 }
-            }
-
-            if (terminated) {
-                System.out.println("Exit timeout checking loop");
-                break;
             }
         }
     }
@@ -842,9 +812,6 @@ public class MetaServer {
 
             System.out.println("Enter meta server heartbeat receive loop");
             while (true) {
-                if (terminated) {
-                    break;
-                }
 
                 try {
                     InputStream tcpFlow = fileServerSock.getInputStream();
@@ -868,7 +835,6 @@ public class MetaServer {
 
                 } catch (IOException | ClassNotFoundException e) {
                     e.printStackTrace();
-                    setTerminated(true);
                     break;
                 }
             }
