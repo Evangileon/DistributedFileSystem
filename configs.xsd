@@ -7,6 +7,7 @@
       <xs:element type="xs:integer" name="receiveHeartbeatPort"/>
       <xs:element type="xs:integer" name="clientPort"/>
       <xs:element type="xs:integer" name="ackPort"/>
+      <xs:element type="xs:integer" name="replicaPort"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="configsType">
@@ -26,6 +27,7 @@
       <xs:element name="hostname" type="xs:string"/>
       <xs:element type="xs:integer" name="receiveMetaFilePort"/>
       <xs:element type="xs:integer" name="requestFilePort"/>
+      <xs:element type="xs:integer" name="commandPort"/>
       <xs:element name="storageDir" type="xs:string"/>
     </xs:sequence>
   </xs:complexType>

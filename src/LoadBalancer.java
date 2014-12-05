@@ -25,15 +25,32 @@ public class LoadBalancer {
     /**
      * Get the id of file server that has least chunks maintain
      *
-     * @return id of file server
+     * @param id file server that is primary
+     * @return list of id of replica file server
      */
-    public int getTop() {
-        sort();
-        if (loadList.size() != 0) {
-            return loadList.get(0).id;
-        } else {
-            return 0;
+    public List<Integer> getReplicas(int id) {
+        if (loadList.size() < 3) {
+            return null;
         }
+
+        sort();
+
+        ArrayList<Integer> replicas = new ArrayList<>();
+        synchronized (loadList) {
+            Iterator<FileServer> itor = loadList.iterator();
+            while (replicas.size() != 2 && itor.hasNext()) {
+                FileServer candidate = itor.next();
+                if (candidate.id != id) {
+                    // good replica
+                    replicas.add(candidate.id);
+                }
+            }
+        }
+
+        if (replicas.size() != 2) {
+            return null;
+        }
+        return replicas;
     }
 
     /**

@@ -34,6 +34,8 @@ public class MetaServer {
     int clientPort;
     // port to receive ACKs
     int ackPort;
+    // replica fetch port
+    int replicaPort;
 
     // socket to listen to heartbeat connections
     ServerSocket receiveHeartbeatSock;
@@ -41,10 +43,17 @@ public class MetaServer {
     ServerSocket receiveRequestSock;
     // socket to listen to ACKs
     ServerSocket receiveAckSock;
+    // socket to listen to replica fetch request
+    ServerSocket receiveReplicaFetch;
 
     // String -> list of Chunks -> location
-    // map all chunks of a file to file servers
+    // map all chunks of a file to file servers, primary replica
     final Map<String, List<Integer>> fileChunkMap = new ConcurrentHashMap<>();
+    // replica 2
+    final Map<String, List<Integer>> fileChunkMapReplica2 = new ConcurrentHashMap<>();
+    // replica 3
+    final Map<String, List<Integer>> fileChunkMapReplica3 = new ConcurrentHashMap<>();
+
     // records the availability  of all chunks of a file
     final Map<String, List<Boolean>> fileChunkAvailableMap = new ConcurrentHashMap<>();
 
@@ -198,6 +207,9 @@ public class MetaServer {
             if (nodeName.equals("ackPort")) {
                 this.ackPort = Integer.parseInt(text);
             }
+            if (nodeName.equals("replicaPort")) {
+                this.replicaPort = Integer.parseInt(text);
+            }
         }
     }
 
@@ -336,7 +348,7 @@ public class MetaServer {
                             releasePendingChunks(remoteID, ack.fileInfo);
 
                         } else if (ack.type == ACKEnvelop.CLIENT_ACK) {
-
+                            // client send this ACK if and only if read/append fail
                             if (ack.chunkMap != null && ack.success == false) {
                                 // client will tell meta to remove these chunks from pending
                                 for (Map.Entry<String, ArrayList<Integer>> pair : ack.chunkMap.entrySet()) {
@@ -364,6 +376,51 @@ public class MetaServer {
 
         ackThread.setDaemon(true);
         ackThread.start();
+    }
+
+    /**
+     * Create a new thread to handle the fetch replicas request from file server
+     */
+    private void prepareToReceiveReplicaRequest() {
+        try {
+            receiveReplicaFetch = new ServerSocket(this.replicaPort);
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+
+        Thread replicaThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    try {
+                        Socket replicaFecthSock = receiveReplicaFetch.accept();
+                        ObjectInputStream input = new ObjectInputStream(replicaFecthSock.getInputStream());
+                        RequestEnvelop request = (RequestEnvelop) input.readObject();
+
+                        ResponseEnvelop response = new ResponseEnvelop(request);
+
+                        if (request.cmd.equals("fetchReplicas")) {
+                            List<Integer> replicas = getReplicas(request.fileName, request.chunkID);
+                            response.chunksLocation = new LinkedList<>(replicas);
+                        }
+
+                        ObjectOutputStream output = new ObjectOutputStream(replicaFecthSock.getOutputStream());
+                        output.writeObject(response);
+                        output.flush();
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                        System.exit(-1);
+                    }
+                }
+            }
+        });
+
+        replicaThread.setDaemon(true);
+        replicaThread.start();
     }
 
     /**
@@ -676,6 +733,76 @@ public class MetaServer {
         }
     }
 
+    /**
+     * Get replicas arrangement
+     * @param fileName file name
+     * @param chunkID ID
+     * @return list of replica locations
+     */
+    private List<Integer> getReplicas(String fileName, int chunkID) {
+        ArrayList<Integer> replicas = new ArrayList<>();
+
+        List<Integer> replicaList2 = fileChunkMapReplica2.get(fileName);
+        if (replicaList2 == null) {
+            return null;
+        }
+        if (replicaList2.size() <= chunkID) {
+            return null;
+        }
+        replicas.add(replicaList2.get(chunkID));
+
+        List<Integer> replicaList3 = fileChunkMapReplica2.get(fileName);
+        if (replicaList3 == null) {
+            return null;
+        }
+        if (replicaList3.size() <= chunkID) {
+            return null;
+        }
+        replicas.add(replicaList3.get(chunkID));
+
+        assert replicas.size() == 2;
+        return replicas;
+    }
+
+    /**
+     * Add replicas for specified file, specified chunk
+     * @param fileName file name
+     * @param chunkID ID
+     * @param replicas list
+     */
+    private void addToReplicaList(String fileName, int chunkID, List<Integer> replicas) {
+        if (replicas == null || replicas.size() != 2) {
+            return;
+        }
+
+        List<Integer> replicaList2;
+        synchronized (fileChunkMapReplica2) {
+            replicaList2 = fileChunkMapReplica2.get(fileName);
+            if (replicaList2 == null) {
+                replicaList2 = Collections.synchronizedList(new ArrayList<Integer>());
+                fileChunkMapReplica2.put(fileName, replicaList2);
+            }
+        }
+
+        synchronized (replicaList2) {
+            Helper.expandToIndexInteger(replicaList2, chunkID);
+            replicaList2.set(chunkID, replicas.get(0));
+        }
+
+        List<Integer> replicaList3;
+        synchronized (fileChunkMapReplica3) {
+            replicaList3 = fileChunkMapReplica2.get(fileName);
+            if (replicaList3 == null) {
+                replicaList3 = Collections.synchronizedList(new ArrayList<Integer>());
+                fileChunkMapReplica2.put(fileName, replicaList3);
+            }
+        }
+
+        synchronized (replicaList3) {
+            Helper.expandToIndexInteger(replicaList3, chunkID);
+            replicaList3.set(chunkID, replicas.get(1));
+        }
+    }
 
     /**
      * Thread to handle single heartbeat connection
@@ -1058,9 +1185,22 @@ public class MetaServer {
             chunkLocationList.add(idArray[location]);
         }
 
-        // add to pending list
+        // arrange replicas
         Iterator<Integer> chunkItor = chunkList.iterator();
         Iterator<Integer> locationItor = chunkLocationList.iterator();
+        while (chunkItor.hasNext()) {
+            int chunk = chunkItor.next();
+            int loc = locationItor.next();
+
+            List<Integer> replicas = loadBalancer.getReplicas(loc);
+            if (replicas != null) {
+                addToReplicaList(fileName, chunk, replicas);
+            }
+        }
+
+        // add to pending list
+        chunkItor = chunkList.iterator();
+        locationItor = chunkLocationList.iterator();
         while (chunkItor.hasNext()) {
             int chunk = chunkItor.next();
             int loc = locationItor.next();
@@ -1070,6 +1210,7 @@ public class MetaServer {
 
         return FileClient.SUCCESS;
     }
+
 
     final Random random = new Random();
 
@@ -1219,11 +1360,13 @@ public class MetaServer {
     public void launch() {
         initialize();
 
-        prepareToReceiveClientRequest();
+        prepareToReceiveReplicaRequest();
 
         prepareToReceiveHeartbeat();
 
         prepareToReceiveACK();
+
+        prepareToReceiveClientRequest();
 
         keepCheckingLivenessOfHeartbeat();
     }

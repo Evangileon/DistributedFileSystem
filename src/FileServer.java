@@ -17,6 +17,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 public class FileServer {
@@ -28,6 +29,7 @@ public class FileServer {
     int receiveMetaFilePort; // receive from meta server
     int requestFilePort; // request from client
     int fileServerExchangePort; // the port this server opens to other file servers
+    int commandPort; // the port to receive command from meta
 
     MetaServer metaServer;
 
@@ -38,8 +40,13 @@ public class FileServer {
     Socket heartbeatSock;
     // socket to listen to request
     ServerSocket requestSock;
+    // socket to hand command from meta
+    ServerSocket commandSock;
 
     HashMap<Integer, FileServer> allFileServerList;
+
+    // replicas location sent from meta server
+    final Map<String, Map<Integer, List<Integer>>> replicaMap = new ConcurrentHashMap<>();
 
     //public static final int CHUNK_LENGTH = 8192;
 
@@ -141,6 +148,9 @@ public class FileServer {
             }
             if (nodeName.equals("requestFilePort")) {
                 this.requestFilePort = Integer.parseInt(text);
+            }
+            if (nodeName.equals("commandPort")) {
+                this.commandPort = Integer.parseInt(text);
             }
             if (nodeName.equals("storageDir")) {
                 this.storageDir = text;
@@ -260,6 +270,70 @@ public class FileServer {
 
         requestHandleRequest.setDaemon(true);
         requestHandleRequest.start();
+    }
+
+    private void prepareToReceiveCommandFromMeta() {
+        try {
+            commandSock = new ServerSocket(this.commandPort);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("Command listen port: " + commandSock.getLocalPort());
+
+        Thread commandHandleThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    try {
+                        Socket metaSock = commandSock.accept();
+                        ObjectInputStream input = new ObjectInputStream(metaSock.getInputStream());
+
+                        CommandEnvelop command = (CommandEnvelop)input.readObject();
+
+                        if (command.cmd.equals("replicas")) {
+                            addToReplicaList(command.fileName, command.chunkID, command.replicas);
+                        } else if (command.equals("moveReplica")) {
+                            // TODO move to new replica
+                        }
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                        System.exit(-1);
+                    }
+                }
+            }
+        });
+
+        commandHandleThread.setDaemon(true);
+        commandHandleThread.start();
+    }
+
+    /**
+     * Add the replica information sent from meta to local
+     * @param fileName file name
+     * @param chunkID ID
+     * @param replicas two replica locations
+     */
+    private void addToReplicaList(String fileName, int chunkID, List<Integer> replicas) {
+        if (fileName == null || replicas == null) {
+            return;
+        }
+
+        Map<Integer, List<Integer>> chunkReplicas;
+        synchronized (replicaMap) {
+            chunkReplicas = replicaMap.get(fileName);
+            if (chunkReplicas == null) {
+                chunkReplicas = new ConcurrentHashMap<>();
+                replicaMap.put(fileName, chunkReplicas);
+            }
+        }
+
+        synchronized (chunkReplicas) {
+            chunkReplicas.put(chunkID, replicas);
+        }
     }
 
     /**
@@ -664,6 +738,29 @@ public class FileServer {
         }
 
         return true;
+    }
+
+    /**
+     * Get replicas from local, if get null, try to fetch from meta server
+     * @param fileName file name
+     * @param chunkID chunk ID
+     * @return list of id of replica servers
+     */
+    private List<Integer> getReplicas(String fileName, int chunkID) {
+
+//        Map<Integer, List<Integer>> replicaLocations = replicaMap.get(fileName);
+//        if (replicaLocations == null) {
+//            return null;
+//        }
+//
+//        List<Integer> replicas = replicaLocations.get(chunkID);
+
+        return fetchReplicasFromMeta(fileName, chunkID);
+    }
+
+    private List<Integer> fetchReplicasFromMeta(String fileName, int chunkID) {
+        return null;
+
     }
 
     /**

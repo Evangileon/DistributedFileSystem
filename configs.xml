@@ -5,7 +5,8 @@
         <hostname>dc02.utdallas.edu</hostname>
         <receiveHeartbeatPort>50001</receiveHeartbeatPort>
         <clientPort>50003</clientPort>
-        <ackPort>50005</ackPort>
+        <ackPort>50006</ackPort>
+        <replicaPort>50007</replicaPort>
     </metaServer>
 
     <fileServers>
@@ -14,6 +15,7 @@
             <hostname>dc03.utdallas.edu</hostname>
             <receiveMetaFilePort>50002</receiveMetaFilePort>
             <requestFilePort>50004</requestFilePort>
+            <commandPort>50005</commandPort>
             <storageDir>files1</storageDir>
         </fileServer>
         <fileServer>
@@ -21,6 +23,7 @@
             <hostname>dc05.utdallas.edu</hostname>
             <receiveMetaFilePort>50002</receiveMetaFilePort>
             <requestFilePort>50004</requestFilePort>
+            <commandPort>50005</commandPort>
             <storageDir>files2</storageDir>
         </fileServer>
         <fileServer>
@@ -28,6 +31,7 @@
             <hostname>dc08.utdallas.edu</hostname>
             <receiveMetaFilePort>50002</receiveMetaFilePort>
             <requestFilePort>50004</requestFilePort>
+            <commandPort>50005</commandPort>
             <storageDir>files3</storageDir>
         </fileServer>
     </fileServers>
