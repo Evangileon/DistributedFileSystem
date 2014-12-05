@@ -961,7 +961,7 @@ public class FileServer {
                 return FileClient.CHUNK_NOT_AVAILABLE;
             }
             char[] data = readChunk(chunk);
-            request.data = data;
+            request.data = Arrays.copyOf(data, chunk.actualLength);
 
             // no ACK to meta
             request.addParam("no");
