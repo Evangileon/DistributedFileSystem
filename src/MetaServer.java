@@ -713,7 +713,7 @@ public class MetaServer {
         }
         replicas.add(replicaList2.get(chunkID));
 
-        List<Integer> replicaList3 = fileChunkMapReplica2.get(fileName);
+        List<Integer> replicaList3 = fileChunkMapReplica3.get(fileName);
         if (replicaList3 == null) {
             return null;
         }
