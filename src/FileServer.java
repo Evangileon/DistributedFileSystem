@@ -145,6 +145,8 @@ public class FileServer {
      * @param serverNode root element node of meta server in XML config file
      */
     private void parseXMLToConfigMetaServer(Node serverNode) {
+        metaServer = new MetaServer();
+
         NodeList serverConfig = serverNode.getChildNodes();
 
         for (int j = 0; j < serverConfig.getLength(); j++) {
