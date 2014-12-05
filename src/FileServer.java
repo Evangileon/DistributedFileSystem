@@ -455,6 +455,20 @@ public class FileServer {
                             System.out.println("Migrate fail: " + fileMigrate + " " + chunkMigrate);
                             response.setError(-1);
                         }
+                    } else if (cmd.equals("replica")) {
+                        if (request.params.size() != 0) {
+                            chunkID = Integer.valueOf(request.params.get(0));
+                            int actualLength = Helper.charArrayLength(request.data);
+                            FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
+                            //System.out.println(Arrays.toString(request.data));
+
+                            int size1 = write(fileName, chunkID, actualLength, request.data, false);
+
+                            response.addParam(Integer.toString(size1));
+
+                        } else {
+                            response.setError(FileClient.INVALID_COMMAND);
+                        }
                     }
 
                 } else {
@@ -650,21 +664,20 @@ public class FileServer {
         addToMetaData(chunk1);
         // update meta server
 
-        // replicas
-        List<Integer> replicas = getReplicas(fileName, chunkID);
-        System.out.println("Replicas");
-        System.out.println(replicas.toArray().toString());
-        for (Integer replica : replicas) {
-            int suc = migrateChunkReplica(fileName, chunkID, replica);
-            if (suc < 0) {
-                System.out.println("Migrate fail: " + fileName + " " + chunkID);
-            } else {
-                System.out.println("Migrate " + fileName + " " + chunkID + " to " + replica);
-            }
-        }
-
         if (needACK) {
-            sendACKTOMeta(chunk1, true);
+            // replicas
+            List<Integer> replicas = getReplicas(fileName, chunkID);
+            System.out.println("Replicas");
+            System.out.println(Arrays.toString(replicas.toArray()));
+            for (Integer replica : replicas) {
+                int suc = migrateChunkReplica(fileName, chunkID, replica);
+                if (suc < 0) {
+                    System.out.println("Migrate fail: " + fileName + " " + chunkID);
+                } else {
+                    System.out.println("Migrate " + fileName + " " + chunkID + " to " + replica);
+                }
+            }
+            sendACKTOMeta(null, true);
         }
         return size;
     }
@@ -707,7 +720,7 @@ public class FileServer {
             }
         }
 
-        sendACKTOMeta(chunk2, true);
+        sendACKTOMeta(null, true);
         return ret;
     }
 
@@ -941,7 +954,7 @@ public class FileServer {
 
         try {
             Socket targetSock = new Socket(fileServer.fileServerAddress, fileServer.requestFilePort);
-            RequestEnvelop request = new RequestEnvelop("w", fileName);
+            RequestEnvelop request = new RequestEnvelop("replica", fileName);
             request.addParam(Integer.toString(chunkID));
             FileChunk chunk = getChunk(fileName, chunkID);
             if (chunk == null) {
