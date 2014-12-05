@@ -754,10 +754,10 @@ public class MetaServer {
 
         List<Integer> replicaList3;
         synchronized (fileChunkMapReplica3) {
-            replicaList3 = fileChunkMapReplica2.get(fileName);
+            replicaList3 = fileChunkMapReplica3.get(fileName);
             if (replicaList3 == null) {
                 replicaList3 = Collections.synchronizedList(new ArrayList<Integer>());
-                fileChunkMapReplica2.put(fileName, replicaList3);
+                fileChunkMapReplica3.put(fileName, replicaList3);
             }
         }
 
@@ -1182,6 +1182,7 @@ public class MetaServer {
 
         // update meta data
         List<Integer> list = Collections.synchronizedList(new ArrayList<Integer>());
+        locationItor = chunkLocationList.iterator();
         while (locationItor.hasNext()) {
             list.add(locationItor.next());
         }
@@ -1273,7 +1274,7 @@ public class MetaServer {
 
         List<Integer> list = fileChunkMap.get(fileName);
         synchronized (list) {
-            while (chunkItor.hasNext()) {
+            while (locationItor.hasNext()) {
                 list.add(locationItor.next());
             }
         }
