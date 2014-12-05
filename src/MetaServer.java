@@ -55,7 +55,7 @@ public class MetaServer {
     final Map<String, List<Integer>> fileChunkMapReplica3 = new ConcurrentHashMap<>();
 
     // records the availability  of all chunks of a file
-    final Map<String, List<Boolean>> fileChunkAvailableMap = new ConcurrentHashMap<>();
+    //final Map<String, List<Boolean>> fileChunkAvailableMap = new ConcurrentHashMap<>();
 
     // file server id -> file info
     // map the file server id to file information on this file server
@@ -454,30 +454,15 @@ public class MetaServer {
             allFileServerAvail.put(id, false);
         }
 
-        // update availability
-        synchronized (fileChunkAvailableMap) {
-            FileInfo fileInfo = fileServerInfoMap.get(id);
+        FileInfo fileInfo = fileServerInfoMap.get(id);
 
-            if (fileInfo != null) {
-                for (Map.Entry<String, List<FileChunk>> pair : fileInfo) {
-                    String fileName = pair.getKey();
-                    List<FileChunk> fileChunks = pair.getValue();
 
-                    List<Boolean> availableMap = fileChunkAvailableMap.get(fileName);
-                    if (availableMap == null) {
-                        availableMap = new ArrayList<>();
-                        fileChunkAvailableMap.put(fileName, availableMap);
-                    }
-
-                    for (FileChunk fileChunk : fileChunks) {
-                        Helper.expandToIndexBoolean(availableMap, fileChunk.chunkID);
-                        availableMap.set(fileChunk.chunkID, false);
-                    }
-                }
-
-                // also remove from pending list
-                releasePendingChunks(id, fileInfo);
+        if (fileInfo != null) {
+            synchronized (fileServerInfoMap) {
+                fileServerInfoMap.remove(id);
             }
+            // also remove from pending list
+            releasePendingChunks(id, fileInfo);
         }
     }
 
@@ -613,29 +598,14 @@ public class MetaServer {
                     chunksOnThisServer.set(fileChunk.chunkID, id);
                 }
             }
-
-            // update availability
-            List<Boolean> availableMap;
-            synchronized (fileChunkAvailableMap) {
-                availableMap = fileChunkAvailableMap.get(fileName);
-                if (availableMap == null) {
-                    availableMap = Collections.synchronizedList(new ArrayList<Boolean>());
-                    fileChunkAvailableMap.put(fileName, availableMap);
-                }
-            }
-
-            synchronized (availableMap) {
-                for (FileChunk fileChunk : fileChunks) {
-                    Helper.expandToIndexBoolean(availableMap, fileChunk.chunkID);
-                    availableMap.set(fileChunk.chunkID, true);
-                }
-            }
         }
 
         synchronized (fileServerInfoMap) {
             fileServerInfoMap.put(id, fileInfo);
         }
-
+        synchronized (allFileServerAvail) {
+            allFileServerAvail.put(id, true);
+        }
     }
 
     /**
@@ -690,7 +660,8 @@ public class MetaServer {
 
     /**
      * This function used after append or read fail
-     * @param fileName file name of the chunks belongs to
+     *
+     * @param fileName  file name of the chunks belongs to
      * @param chunkList a list of chunk ID
      */
     private void removeFromPendingChunks(String fileName, List<Integer> chunkList) {
@@ -718,6 +689,10 @@ public class MetaServer {
      */
     private void releasePendingChunks(int id, FileInfo fileInfo) {
 
+        if (fileInfo == null) {
+            return;
+        }
+
         for (Map.Entry<String, List<FileChunk>> fileChunksInFileServer : fileInfo) {
             String fileName = fileChunksInFileServer.getKey();
             if (!pendingFileChunks.containsKey(fileName)) {
@@ -735,8 +710,9 @@ public class MetaServer {
 
     /**
      * Get replicas arrangement
+     *
      * @param fileName file name
-     * @param chunkID ID
+     * @param chunkID  ID
      * @return list of replica locations
      */
     private List<Integer> getReplicas(String fileName, int chunkID) {
@@ -766,8 +742,9 @@ public class MetaServer {
 
     /**
      * Add replicas for specified file, specified chunk
+     *
      * @param fileName file name
-     * @param chunkID ID
+     * @param chunkID  ID
      * @param replicas list
      */
     private void addToReplicaList(String fileName, int chunkID, List<Integer> replicas) {
@@ -879,18 +856,6 @@ public class MetaServer {
             List<Integer> list = pair.getValue();
             for (Integer id : list) {
                 System.out.print(id + ", ");
-            }
-            System.out.println();
-        }
-    }
-
-    @SuppressWarnings("unused")
-    private void printAvailabilityMap() {
-        System.out.println("File Chunk Availability Map:");
-        for (Map.Entry<String, List<Boolean>> pair : fileChunkAvailableMap.entrySet()) {
-            System.out.printf("%s: ", pair.getKey());
-            for (Boolean avail : pair.getValue()) {
-                System.out.print(avail + ", ");
             }
             System.out.println();
         }
@@ -1041,17 +1006,16 @@ public class MetaServer {
             }
         }
 
-        // check availability
-        List<Boolean> avails = fileChunkAvailableMap.get(fileName);
-        if (avails == null) {
+        List<Integer> list = fileChunkMap.get(fileName);
+        if (list == null) {
             return FileClient.FILE_NOT_EXIST;
         }
-        // check whether demanded chunk exists, in other word, demanded length not exceed real length
-        if (lastIndexBelongsToWhichChunk >= avails.size()) {
-            return FileClient.FILE_LENGTH_EXCEED;
-        }
         for (Integer chunkID : chunksNeedToScan) {
-            if (!avails.get(chunkID)) {
+            if (chunkID >= list.size()) {
+                return FileClient.FILE_LENGTH_EXCEED;
+            }
+            int location = list.get(chunkID);
+            if (!checkAvailability(location, fileName, chunkID)) {
                 return FileClient.CHUNK_NOT_AVAILABLE;
             }
         }
@@ -1077,15 +1041,14 @@ public class MetaServer {
             return FileClient.CHUNK_IN_PENDING;
         }
 
-        List<Boolean> avails = fileChunkAvailableMap.get(fileName);
-        boolean availableOfLast = avails.get(avails.size() - 1);
-        if (!availableOfLast) {
-            return FileClient.CHUNK_NOT_AVAILABLE;
+        List<Integer> list = fileChunkMap.get(fileName);
+        if (list == null || list.size() == 0) {
+            return FileClient.FILE_NOT_EXIST;
         }
 
-        List<Integer> list = fileChunkMap.get(fileName);
-        if (list == null) {
-            return FileClient.FILE_NOT_EXIST;
+        // availability
+        if (!checkAvailability(list.get(list.size() - 1), fileName, list.size() - 1)) {
+            return FileClient.CHUNK_NOT_AVAILABLE;
         }
 
         int whereLastChunk = list.get(list.size() - 1);
@@ -1107,16 +1070,16 @@ public class MetaServer {
             return FileClient.CHUNK_IN_PENDING;
         }
 
-        List<Boolean> avails = fileChunkAvailableMap.get(fileName);
-        boolean availableOfLast = avails.get(avails.size() - 1);
-        if (!availableOfLast) {
-            return FileClient.CHUNK_NOT_AVAILABLE;
-        }
-
         List<Integer> list = fileChunkMap.get(fileName);
         if (list == null) {
             return FileClient.FILE_NOT_EXIST;
         }
+
+        // availability
+        if (!checkAvailability(list.get(list.size() - 1), fileName, list.size() - 1)) {
+            return FileClient.CHUNK_NOT_AVAILABLE;
+        }
+
         return list.size() - 1;
     }
 
@@ -1131,16 +1094,16 @@ public class MetaServer {
             return FileClient.CHUNK_IN_PENDING;
         }
 
-        List<Boolean> avails = fileChunkAvailableMap.get(fileName);
-        boolean availableOfLast = avails.get(avails.size() - 1);
-        if (!availableOfLast) {
-            return FileClient.CHUNK_NOT_AVAILABLE;
-        }
-
         List<Integer> list = fileChunkMap.get(fileName);
         if (list == null) {
             return FileClient.FILE_NOT_EXIST;
         }
+
+        // availability
+        if (!checkAvailability(list.get(list.size() - 1), fileName, list.size() - 1)) {
+            return FileClient.CHUNK_NOT_AVAILABLE;
+        }
+
         return list.get(list.size() - 1);
     }
 
@@ -1280,9 +1243,8 @@ public class MetaServer {
      */
     public boolean delete(String fileName) {
         List<Integer> chunkLocations = fileChunkMap.get(fileName);
-        List<Boolean> chunkAvails = fileChunkAvailableMap.get(fileName);
 
-        if (chunkAvails == null || chunkLocations == null) {
+        if (chunkLocations == null) {
             return false;
         }
 
@@ -1292,8 +1254,9 @@ public class MetaServer {
         }
 
         // check all availability
-        for (Boolean chunkAvail : chunkAvails) {
-            if (!chunkAvail) {
+        int num = 0;
+        for (Integer location : chunkLocations) {
+            if (!checkAvailability(location, fileName, num++)) {
                 return false;
             }
         }
@@ -1327,12 +1290,41 @@ public class MetaServer {
         synchronized (fileChunkMap) {
             fileChunkMap.remove(fileName);
         }
-        synchronized (fileChunkAvailableMap) {
-            fileChunkAvailableMap.remove(fileName);
+        synchronized (fileChunkMapReplica2) {
+            fileChunkMapReplica2.remove(fileName);
+        }
+        synchronized (fileChunkMapReplica3) {
+            fileChunkMapReplica3.remove(fileName);
         }
 
         System.out.println(String.format("%s: %d chunks deleted", fileName, affected));
         return true;
+    }
+
+    /**
+     * Check the Availability of chunk at file server
+     * @param id file server
+     * @param fileName file name
+     * @param chunkID ID
+     * @return true if available, false otherwise
+     */
+    private boolean checkAvailability(int id, String fileName, int chunkID) {
+        FileInfo fileInfo = fileServerInfoMap.get(id);
+        if (fileInfo == null) {
+            return false;
+        }
+
+        List<FileChunk> chunkList = fileInfo.fileChunks.get(fileName);
+        if (chunkList == null) {
+            return false;
+        }
+
+        for (FileChunk chunk : chunkList) {
+            if (chunk.chunkID == chunkID) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
