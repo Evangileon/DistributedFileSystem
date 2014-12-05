@@ -456,13 +456,29 @@ public class MetaServer {
 
         FileInfo fileInfo = fileServerInfoMap.get(id);
 
-
         if (fileInfo != null) {
             synchronized (fileServerInfoMap) {
                 fileServerInfoMap.remove(id);
             }
 //            // also remove from pending list
 //            releasePendingChunks(id, fileInfo);
+        }
+    }
+
+    private void migrateReplicas(int id, FileInfo fileInfo) {
+        for (Map.Entry<String, List<FileChunk>> pair : fileInfo.fileChunks.entrySet()) {
+            String fileName = pair.getKey();
+            List<FileChunk> chunkList = pair.getValue();
+
+            for (FileChunk chunk : chunkList) {
+                if (isPrimaryReplica(id, fileName, chunk.chunkID)) {
+                    // primary replica
+                    // primary need to switch over to a another replica
+
+                } else {
+
+                }
+            }
         }
     }
 
@@ -779,6 +795,24 @@ public class MetaServer {
             Helper.expandToIndexInteger(replicaList3, chunkID);
             replicaList3.set(chunkID, replicas.get(1));
         }
+    }
+
+    /**
+     * If the chunk information sent from file server primary
+     * @param id ID that send the chunk info
+     * @param fileName file name
+     * @param chunkID chunk ID
+     * @return whether primary
+     */
+    private boolean isPrimaryReplica(int id, String fileName, int chunkID) {
+        List<Integer> chunkList = fileChunkMap.get(fileName);
+        if (chunkList == null) {
+            return false;
+        }
+        if (chunkList.size() <= chunkID) {
+            return false;
+        }
+        return chunkList.get(chunkID) == id;
     }
 
     /**
@@ -1344,6 +1378,40 @@ public class MetaServer {
     }
 
     /**
+     * Get the load list of each alive file servers
+     * @return map
+     */
+    public Map<Integer, Integer> getChunkNumberMap() {
+        HashMap<Integer, Integer> map = new HashMap<>();
+        for (Integer id : fileServerInfoMap.keySet()) {
+            map.put(id, 0);
+        }
+
+        for (List<Integer> chunks : fileChunkMap.values()) {
+            for (Integer location : chunks) {
+                if (map.containsKey(location)) {
+                    map.put(location, map.get(location) + 1);
+                }
+            }
+        }
+        for (List<Integer> chunks : fileChunkMapReplica2.values()) {
+            for (Integer location : chunks) {
+                if (map.containsKey(location)) {
+                    map.put(location, map.get(location) + 1);
+                }
+            }
+        }
+        for (List<Integer> chunks : fileChunkMapReplica3.values()) {
+            for (Integer location : chunks) {
+                if (map.containsKey(location)) {
+                    map.put(location, map.get(location) + 1);
+                }
+            }
+        }
+        return map;
+    }
+
+    /**
      * Check the Availability of chunk at file server
      *
      * @param id       file server
@@ -1386,7 +1454,7 @@ public class MetaServer {
             fileServerHeartbeatFailTimes.put(id, 0);
         }
 
-        loadBalancer = new LoadBalancer(allFileServerList.values());
+        loadBalancer = new LoadBalancer(this);
     }
 
     /**

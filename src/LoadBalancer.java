@@ -2,24 +2,33 @@ import java.util.*;
 
 public class LoadBalancer {
 
-    final List<FileServer> loadList = Collections.synchronizedList(new ArrayList<FileServer>());
+    //final List<FileServer> loadList = Collections.synchronizedList(new ArrayList<FileServer>());
 
-    public LoadBalancer(Collection<FileServer> loadList) {
-        this.loadList.addAll(loadList);
+    MetaServer metaServer;
+
+    public LoadBalancer(MetaServer metaServer) {
+        this.metaServer = metaServer;
     }
 
     /**
      * Sort by the order of number of chunks stored
      */
-    private void sort() {
-        synchronized (loadList) {
-            Collections.sort(loadList, new Comparator<FileServer>() {
-                @Override
-                public int compare(FileServer o1, FileServer o2) {
-                    return o1.fileInfo.totalChunks() - o2.fileInfo.totalChunks();
-                }
-            });
+    private List<Integer> sort() {
+
+        final Map<Integer, Integer> map = metaServer.getChunkNumberMap();
+        ArrayList<Integer> loadList = new ArrayList<>();
+        for (Integer id : map.keySet()) {
+            loadList.add(id);
         }
+
+        Collections.sort(loadList, new Comparator<Integer>() {
+            @Override
+            public int compare(Integer o1, Integer o2) {
+                return map.get(o1) - map.get(o2);
+            }
+        });
+
+        return loadList;
     }
 
     /**
@@ -29,21 +38,16 @@ public class LoadBalancer {
      * @return list of id of replica file server
      */
     public List<Integer> getReplicas(int id) {
-        if (loadList.size() < 3) {
-            return null;
-        }
 
-        sort();
+        List<Integer> loadList = sort();
 
         ArrayList<Integer> replicas = new ArrayList<>();
-        synchronized (loadList) {
-            Iterator<FileServer> itor = loadList.iterator();
-            while (replicas.size() != 2 && itor.hasNext()) {
-                FileServer candidate = itor.next();
-                if (candidate.id != id) {
-                    // good replica
-                    replicas.add(candidate.id);
-                }
+        Iterator<Integer> itor = loadList.iterator();
+        while (replicas.size() != 2 && itor.hasNext()) {
+            Integer candidate = itor.next();
+            if (candidate != id) {
+                // good replica
+                replicas.add(candidate);
             }
         }
 
@@ -54,26 +58,22 @@ public class LoadBalancer {
     }
 
     /**
-     * File server join to the group of load balancer
+     * @param previousReplicas replicas before fail
+     * @return proper file server
      */
-    public void join(FileServer fileServer) {
-        synchronized (loadList) {
-            loadList.add(fileServer);
+    public int getExclusiveReplica(List<Integer> previousReplicas) {
+        List<Integer> loadList = sort();
+
+        ArrayList<Integer> replicas = new ArrayList<>();
+        Iterator<Integer> itor = loadList.iterator();
+        while (replicas.size() != 2 && itor.hasNext()) {
+            Integer candidate = itor.next();
+            if (!previousReplicas.contains(candidate)) {
+                // good replica
+                return candidate;
+            }
         }
 
-        sort();
-    }
-
-    /**
-     * File server leave the group of load balancer
-     *
-     * @return true if load list contained the file server
-     */
-    public boolean leave(FileServer fileServer) {
-        boolean left;
-        synchronized (loadList) {
-            left = loadList.remove(fileServer);
-        }
-        return left;
+        return 1;
     }
 }
