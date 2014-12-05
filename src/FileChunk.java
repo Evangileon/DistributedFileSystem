@@ -15,7 +15,7 @@ public class FileChunk implements Comparable<FileChunk>, Serializable {
     }
 
     public String getChunkName() {
-        return realFileName + "-" + String.format("%08d", chunkID) + "-" + String.format("%02d", version);
+        return realFileName + "-" + String.format("%08d", chunkID);
     }
 
     public String toString() {
