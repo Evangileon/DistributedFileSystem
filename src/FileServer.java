@@ -286,7 +286,7 @@ public class FileServer {
             public void run() {
                 while (true) {
                     try {
-                       Socket sock = commandSock.accept();
+                        Socket sock = commandSock.accept();
 
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -301,8 +301,9 @@ public class FileServer {
 
     /**
      * Add the replica information sent from meta to local
+     *
      * @param fileName file name
-     * @param chunkID ID
+     * @param chunkID  ID
      * @param replicas two replica locations
      */
     private void addToReplicaList(String fileName, int chunkID, List<Integer> replicas) {
@@ -691,7 +692,7 @@ public class FileServer {
     /**
      * Send ACK to meta server carrying with chunk information, and receive commit from server
      *
-     * @param chunk regarding this chunk
+     * @param chunk   regarding this chunk
      * @param success whether or not succeed to write operate this chunk
      * @return true if ACK send to meta and meta response commit. Otherwise false
      */
@@ -734,8 +735,9 @@ public class FileServer {
 
     /**
      * Get replicas from local, if get null, try to fetch from meta server
+     *
      * @param fileName file name
-     * @param chunkID chunk ID
+     * @param chunkID  chunk ID
      * @return list of id of replica servers
      */
     private List<Integer> getReplicas(String fileName, int chunkID) {
@@ -752,8 +754,9 @@ public class FileServer {
 
     /**
      * Replica arrangement is in meta server, need to fetch
+     *
      * @param fileName file name
-     * @param chunkID ID
+     * @param chunkID  ID
      * @return two replicas
      */
     private List<Integer> fetchReplicasFromMeta(String fileName, int chunkID) {

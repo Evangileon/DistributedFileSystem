@@ -16,7 +16,7 @@ public class RequestEnvelop implements Serializable {
         this.fileName = fileName;
         this.params = new ArrayList<>();
         this.data = null;
-        this.chunkID  = 0;
+        this.chunkID = 0;
     }
 
     public void addParam(String param) {

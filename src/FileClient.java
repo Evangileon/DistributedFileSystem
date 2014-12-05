@@ -43,7 +43,7 @@ public class FileClient {
     }
 
     private void resolveMetaAddress() {
-       metaServer.resolveAddress();
+        metaServer.resolveAddress();
     }
 
     public int execute(String[] params) {
@@ -532,9 +532,9 @@ public class FileClient {
     /**
      * Send ACK to meta server carrying with chunk information, and receive commit from server
      *
-     * @param fileName regarding this files
+     * @param fileName  regarding this files
      * @param chunkList regarding this chunk
-     * @param success whether or not succeed to write operate this chunk
+     * @param success   whether or not succeed to write operate this chunk
      * @return true if ACK send to meta and meta response commit. Otherwise false
      */
     private boolean sendACKTOMeta(String fileName, ArrayList<Integer> chunkList, boolean success) {
