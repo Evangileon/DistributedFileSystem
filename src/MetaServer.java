@@ -521,7 +521,7 @@ public class MetaServer {
                 continue;
             }
 
-            //printFileChunkMap();
+            printFileChunkMap();
             //printAvailabilityMap();
 
             long currentTime = System.currentTimeMillis();
