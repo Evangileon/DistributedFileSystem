@@ -1143,7 +1143,7 @@ public class MetaServer {
 
         // randomly distribute chunks
         for (int i = 0; i <= lastChunk; i++) {
-            int location = random.nextInt(allFileServerList.size());
+            int location = random.nextInt(availFileServers.size());
             chunkList.add(i);
             chunkLocationList.add(idArray[location]);
         }
@@ -1161,6 +1161,15 @@ public class MetaServer {
             }
         }
 
+        // update meta data
+        List<Integer> list = Collections.synchronizedList(new ArrayList<Integer>());
+        while (locationItor.hasNext()) {
+            list.add(locationItor.next());
+        }
+        synchronized (fileChunkMap) {
+            fileChunkMap.put(fileName, list);
+        }
+
         // add to pending list
         chunkItor = chunkList.iterator();
         locationItor = chunkLocationList.iterator();
@@ -1169,7 +1178,6 @@ public class MetaServer {
             int loc = locationItor.next();
             addToPendingList(fileName, chunk, loc);
         }
-
 
         return FileClient.SUCCESS;
     }
@@ -1212,19 +1220,44 @@ public class MetaServer {
         // then append entirely new chunks
         int newLastChunk = lastChunk + 1 + (dataRemain - 1) / FileChunk.FIXED_SIZE;
 
-        Integer[] idArray = new Integer[allFileServerList.size()];
-        idArray = allFileServerList.keySet().toArray(idArray);
+        // only distribute to available file servers
+        ArrayList<Integer> availFileServers = new ArrayList<>();
+        for (Integer key : allFileServerList.keySet()) {
+            if (allFileServerAvail.containsKey(key) && allFileServerAvail.get(key)) {
+                availFileServers.add(key);
+            }
+        }
+
+        Integer[] idArray = new Integer[availFileServers.size()];
+        idArray = availFileServers.toArray(idArray);
 
         // randomly distribute new chunks
         for (int i = lastChunk + 1; i <= newLastChunk; i++) {
-            int location = random.nextInt(allFileServerList.size());
+            int location = random.nextInt(availFileServers.size());
             chunkList.add(i);
             chunkLocationList.add(idArray[location]);
         }
 
-        // add to pending list
+        // update meta data
         Iterator<Integer> chunkItor = chunkList.iterator();
         Iterator<Integer> locationItor = chunkLocationList.iterator();
+
+        if (lastRemain != 0) {
+            // append chunks is already there
+            chunkItor.next();
+            locationItor.next();
+        }
+
+        List<Integer> list = fileChunkMap.get(fileName);
+        synchronized (list) {
+            while (chunkItor.hasNext()) {
+                list.add(locationItor.next());
+            }
+        }
+
+        // add to pending list
+        chunkItor = chunkList.iterator();
+        locationItor = chunkLocationList.iterator();
         while (chunkItor.hasNext()) {
             int chunk = chunkItor.next();
             int loc = locationItor.next();

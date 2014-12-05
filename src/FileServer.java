@@ -286,22 +286,10 @@ public class FileServer {
             public void run() {
                 while (true) {
                     try {
-                        Socket metaSock = commandSock.accept();
-                        ObjectInputStream input = new ObjectInputStream(metaSock.getInputStream());
-
-                        CommandEnvelop command = (CommandEnvelop)input.readObject();
-
-                        if (command.cmd.equals("replicas")) {
-                            addToReplicaList(command.fileName, command.chunkID, command.replicas);
-                        } else if (command.equals("moveReplica")) {
-                            // TODO move to new replica
-                        }
+                       Socket sock = commandSock.accept();
 
                     } catch (IOException e) {
                         e.printStackTrace();
-                    } catch (ClassNotFoundException e) {
-                        e.printStackTrace();
-                        System.exit(-1);
                     }
                 }
             }
@@ -548,6 +536,10 @@ public class FileServer {
             size = writeChunk(chunk1, data);
         }
 
+        List<Integer> replicas = getReplicas(fileName, chunkID);
+        System.out.println("Replicas");
+        System.out.println(replicas.toArray().toString());
+
         addToMetaData(chunk1);
         // update meta server
         sendACKTOMeta(chunk1, true);
@@ -758,9 +750,39 @@ public class FileServer {
         return fetchReplicasFromMeta(fileName, chunkID);
     }
 
+    /**
+     * Replica arrangement is in meta server, need to fetch
+     * @param fileName file name
+     * @param chunkID ID
+     * @return two replicas
+     */
     private List<Integer> fetchReplicasFromMeta(String fileName, int chunkID) {
-        return null;
+        try {
+            Socket sock = new Socket(metaServer.metaServerAddress, metaServer.replicaPort);
 
+            RequestEnvelop request = new RequestEnvelop("fetchReplicas", fileName);
+            request.chunkID = chunkID;
+
+            ObjectOutputStream output = new ObjectOutputStream(sock.getOutputStream());
+            output.writeObject(request);
+            output.flush();
+
+            ObjectInputStream input = new ObjectInputStream(sock.getInputStream());
+            ResponseEnvelop response = (ResponseEnvelop) input.readObject();
+
+            if (response.chunksLocation == null) {
+                return null;
+            }
+            return response.chunksLocation;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+
+        return null;
     }
 
     /**
