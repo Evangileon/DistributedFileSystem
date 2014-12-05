@@ -90,9 +90,10 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, List<F
 
     /**
      * Get the total number of chunks maintained on this server
-     *
+     * @deprecated
      * @return number of chunks
      */
+    @Deprecated
     public int totalChunks() {
         int num = 0;
         for (List<FileChunk> chunks : fileChunks.values()) {

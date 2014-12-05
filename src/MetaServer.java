@@ -921,77 +921,91 @@ public class MetaServer {
                 ResponseEnvelop response = new ResponseEnvelop(request);
                 System.out.println("Response UUID: " + response.uuid.toString());
 
-                if (command.length() != 1) {
-                    return;
-                }
+                if (command.length() > 1) {
 
-                char cmd = command.charAt(0);
-                int error = 0;
-                Integer offset;
-                Integer length;
-                LinkedList<Integer> chunkList = new LinkedList<>();
-                LinkedList<Integer> chunkLocationList = new LinkedList<>();
+                    if (command.equals("fetchReplicas")) {
+                        String fileReplica = request.fileName;
+                        int chunkIDReplica = request.chunkID;
 
-                switch (cmd) {
-                    case 'r':
-                        // TODO read file
-                        if (request.params.size() != 2) {
-                            error = FileClient.INVALID_COMMAND;
-                            break;
+                        List<Integer> replicas = getReplicas(fileReplica, chunkIDReplica);
+
+                        if (replicas != null) {
+                            response.chunksLocation = new LinkedList<>(replicas);
+                        } else {
+                            response.setError(-1);
                         }
-                        offset = Integer.valueOf(request.params.get(0));
-                        length = Integer.valueOf(request.params.get(1));
+                    }
 
-                        error = read(fileName, offset, length, chunkList, chunkLocationList);
-
-                        break;
-                    case 'a':
-                        // TODO append file
-                        if (request.params.size() != 1) {
-                            error = FileClient.INVALID_COMMAND;
-                            break;
-                        }
-                        length = Integer.valueOf(request.params.get(0));
-
-                        int offseta = append(fileName, length, chunkList, chunkLocationList);
-                        if (offseta >= 0) {
-                            response.addParam(Integer.toString(offseta % FileChunk.FIXED_SIZE)); // offset
-                        }
-
-                        break;
-                    case 'w':
-                        // TODO write file
-                        if (request.params.size() != 1) {
-                            error = FileClient.INVALID_COMMAND;
-                            break;
-                        }
-
-                        length = Integer.valueOf(request.params.get(0));
-
-                        error = write(fileName, length, chunkList, chunkLocationList);
-
-                        break;
-                    case 'd':
-                        // TODO delete file
-                        boolean deleted = delete(fileName);
-                        if (!deleted) {
-                            error = FileClient.FILE_NOT_EXIST;
-                        }
-
-                        break;
-                    default:
-                        error = FileClient.INVALID_COMMAND;
-                        System.out.println("Unknown command: " + cmd);
-                }
-
-                if (error < 0) {
-                    response.setError(error);
                 } else {
-                    response.setChunksToScan(chunkList);
-                    response.setChunksLocation(chunkLocationList);
+
+                    char cmd = command.charAt(0);
+                    int error = 0;
+                    Integer offset;
+                    Integer length;
+                    LinkedList<Integer> chunkList = new LinkedList<>();
+                    LinkedList<Integer> chunkLocationList = new LinkedList<>();
+
+                    switch (cmd) {
+                        case 'r':
+                            // TODO read file
+                            if (request.params.size() != 2) {
+                                error = FileClient.INVALID_COMMAND;
+                                break;
+                            }
+                            offset = Integer.valueOf(request.params.get(0));
+                            length = Integer.valueOf(request.params.get(1));
+
+                            error = read(fileName, offset, length, chunkList, chunkLocationList);
+
+                            break;
+                        case 'a':
+                            // TODO append file
+                            if (request.params.size() != 1) {
+                                error = FileClient.INVALID_COMMAND;
+                                break;
+                            }
+                            length = Integer.valueOf(request.params.get(0));
+
+                            int offseta = append(fileName, length, chunkList, chunkLocationList);
+                            if (offseta >= 0) {
+                                response.addParam(Integer.toString(offseta % FileChunk.FIXED_SIZE)); // offset
+                            }
+
+                            break;
+                        case 'w':
+                            // TODO write file
+                            if (request.params.size() != 1) {
+                                error = FileClient.INVALID_COMMAND;
+                                break;
+                            }
+
+                            length = Integer.valueOf(request.params.get(0));
+
+                            error = write(fileName, length, chunkList, chunkLocationList);
+
+                            break;
+                        case 'd':
+                            // TODO delete file
+                            boolean deleted = delete(fileName);
+                            if (!deleted) {
+                                error = FileClient.FILE_NOT_EXIST;
+                            }
+
+                            break;
+                        default:
+                            error = FileClient.INVALID_COMMAND;
+                            System.out.println("Unknown command: " + cmd);
+                    }
+
+                    if (error < 0) {
+                        response.setError(error);
+                    } else {
+                        response.setChunksToScan(chunkList);
+                        response.setChunksLocation(chunkLocationList);
+                    }
+                    System.out.println("Number of chunks affected: " + chunkList.size());
                 }
 
-                System.out.println("Number of chunks affected: " + chunkList.size());
                 ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
                 output.writeObject(response);
                 output.flush();

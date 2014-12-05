@@ -84,6 +84,7 @@ public class FileServer {
             // TODO XPath to find proper file server config for this
             //Node thisFileServerNode = doc.getElementsByTagName("fileServer").item(0);
             parseXMLToConfigFileServer(thisFileServerNode);
+            parseXMLToConfigFileServers(doc);
 
         } catch (ParserConfigurationException | SAXException | IOException e) {
             e.printStackTrace();
@@ -113,6 +114,15 @@ public class FileServer {
         parseXMLToConfigFileServer(serverNode);
     }
 
+    /**
+     * Resolve all IP address of file servers
+     */
+    private void resolveAllFileServerAddress() {
+        for (Map.Entry<Integer, FileServer> pair : allFileServerList.entrySet()) {
+            pair.getValue().resolveAddress();
+        }
+    }
+
     public void resolveAddress() {
         if (hostname == null) {
             return;
@@ -122,6 +132,40 @@ public class FileServer {
             fileServerAddress = InetAddress.getByName(hostname);
         } catch (UnknownHostException e) {
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * Retrieve information of all file servers
+     *
+     * @param doc XML object
+     */
+    private void parseXMLToConfigFileServers(Document doc) {
+        Node fileServers = doc.getElementsByTagName("fileServers").item(0);
+        NodeList fileServerList = fileServers.getChildNodes();
+
+        for (int i = 0; i < fileServerList.getLength(); i++) {
+            Node oneServer = fileServerList.item(i);
+            if (oneServer.getNodeType() != Node.ELEMENT_NODE) {
+                continue;
+            }
+
+            NodeList serverConfig = oneServer.getChildNodes();
+            int id = 0;
+
+
+            for (int j = 0; j < serverConfig.getLength(); j++) {
+                Node oneConfig = serverConfig.item(j);
+                if (oneConfig.getNodeType() != Node.ELEMENT_NODE) {
+                    continue;
+                }
+
+                if (oneConfig.getNodeName().equals("id")) {
+                    id = Integer.parseInt(oneConfig.getTextContent());
+                }
+
+            }
+            this.allFileServerList.put(id, new FileServer(id, oneServer));
         }
     }
 
@@ -356,56 +400,82 @@ public class FileServer {
                     System.out.println(String.format("%s|%s|%d", cmd, fileName, request.data.length));
                 }
 
-                switch (cmd.charAt(0)) {
-                    case 'r':
-                        chunkID = Integer.valueOf(request.params.get(0));
-                        offset = Integer.valueOf(request.params.get(1));
-                        length = Integer.valueOf(request.params.get(2));
-                        FileChunk chunk = getChunk(fileName, chunkID);
-                        if (chunk == null) {
-                            response.setError(FileClient.CHUNK_NOT_AVAILABLE);
+                if (cmd.length() > 1) {
+                    if (cmd.equals("migrateReplica")) {
+                        String fileMigrate = request.fileName;
+                        int chunkMigrate = request.chunkID;
+                        if (fileMigrate == null || request.params == null || request.params.size() == 0) {
+                            response.setError(FileClient.INVALID_COMMAND);
+                        }
+
+                        int target = Integer.parseInt(request.params.get(0));
+
+                        int result = migrateChunkReplica(fileMigrate, chunkMigrate, target);
+                        if (result < 0) {
+                            System.out.println("Migrate fail: " + fileMigrate + " " + chunkMigrate);
+                            response.setError(-1);
+                        }
+                    }
+
+                } else {
+
+                    switch (cmd.charAt(0)) {
+                        case 'r':
+                            chunkID = Integer.valueOf(request.params.get(0));
+                            offset = Integer.valueOf(request.params.get(1));
+                            length = Integer.valueOf(request.params.get(2));
+                            FileChunk chunk = getChunk(fileName, chunkID);
+                            if (chunk == null) {
+                                response.setError(FileClient.CHUNK_NOT_AVAILABLE);
+                                break;
+                            }
+                            char[] data = readChunk(chunk);
+                            if (data != null) {
+                                response.setData(Arrays.copyOfRange(data, offset, offset + length));
+                            }
                             break;
-                        }
-                        char[] data = readChunk(chunk);
-                        if (data != null) {
-                            response.setData(Arrays.copyOfRange(data, offset, offset + length));
-                        }
-                        break;
-                    case 'w':
-                        chunkID = Integer.valueOf(request.params.get(0));
-                        int actualLength = Helper.charArrayLength(request.data);
-                        FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
-                        //System.out.println(Arrays.toString(request.data));
+                        case 'w':
+                            if (request.params.size() == 0) {
+                                response.setError(FileClient.INVALID_COMMAND);
+                                break;
+                            }
+                            chunkID = Integer.valueOf(request.params.get(0));
+                            int actualLength = Helper.charArrayLength(request.data);
+                            FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
+                            //System.out.println(Arrays.toString(request.data));
 
-                        int size1 = write(fileName, chunkID, actualLength, request.data);
+                            boolean needACK = request.params.size() == 1;
 
-                        response.addParam(Integer.toString(size1));
-                        break;
-                    case 'a':
-                        chunkID = Integer.valueOf(request.params.get(0));
+                            int size1 = write(fileName, chunkID, actualLength, request.data, needACK);
 
-                        ret = append(fileName, chunkID, request.data);
-
-                        if (ret < 0) {
-                            response.setError(ret);
+                            response.addParam(Integer.toString(size1));
                             break;
-                        }
-                        if (ret != request.data.length) {
-                            response.setError(FileClient.FILE_LENGTH_EXCEED);
+                        case 'a':
+                            chunkID = Integer.valueOf(request.params.get(0));
+
+                            ret = append(fileName, chunkID, request.data);
+
+                            if (ret < 0) {
+                                response.setError(ret);
+                                break;
+                            }
+                            if (ret != request.data.length) {
+                                response.setError(FileClient.FILE_LENGTH_EXCEED);
+                                break;
+                            }
+
+                            response.addParam(Integer.toString(ret));
                             break;
-                        }
+                        case 'd':
+                            String fileNameToDelete = request.fileName;
+                            int affected = deleteFile(fileNameToDelete);
+                            response.addParam(Integer.toString(affected));
 
-                        response.addParam(Integer.toString(ret));
-                        break;
-                    case 'd':
-                        String fileNameToDelete = request.fileName;
-                        int affected = deleteFile(fileNameToDelete);
-                        response.addParam(Integer.toString(affected));
-
-                        break;
-                    default:
-                        System.out.println("Unknown command");
-                        response.setError(FileClient.INVALID_COMMAND);
+                            break;
+                        default:
+                            System.out.println("Unknown command");
+                            response.setError(FileClient.INVALID_COMMAND);
+                    }
                 }
 
                 ObjectOutputStream output = new ObjectOutputStream(clientSock.getOutputStream());
@@ -519,7 +589,7 @@ public class FileServer {
         }
     }
 
-    private int write(String fileName, int chunkID, int actualLength, char[] data) {
+    private int write(String fileName, int chunkID, int actualLength, char[] data, boolean needACK) {
         FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
         //System.out.println(Arrays.toString(request.data));
 
@@ -537,13 +607,25 @@ public class FileServer {
             size = writeChunk(chunk1, data);
         }
 
+        addToMetaData(chunk1);
+        // update meta server
+
+        // replicas
         List<Integer> replicas = getReplicas(fileName, chunkID);
         System.out.println("Replicas");
         System.out.println(replicas.toArray().toString());
+        for (Integer replica : replicas) {
+            int suc = migrateChunkReplica(fileName, chunkID, replica);
+            if (suc < 0) {
+                System.out.println("Migrate fail: " + fileName + " " + chunkID);
+            } else {
+                System.out.println("Migrate " + fileName + " " + chunkID + " to " + replica);
+            }
+        }
 
-        addToMetaData(chunk1);
-        // update meta server
-        sendACKTOMeta(chunk1, true);
+        if (needACK) {
+            sendACKTOMeta(chunk1, true);
+        }
         return size;
     }
 
@@ -567,9 +649,24 @@ public class FileServer {
         if (ret < 0 || ret != data.length) {
             return FileClient.FILE_LENGTH_EXCEED;
         }
+
         chunk2.actualLength = oldChunk.actualLength + ret;
+
         updateMetaData(chunk2);
         // update meta server
+
+        List<Integer> replicas = getReplicas(fileName, chunkID);
+        System.out.println("Replicas");
+        System.out.println(replicas.toArray().toString());
+        for (Integer replica : replicas) {
+            int suc = migrateChunkReplica(fileName, chunkID, replica);
+            if (suc < 0) {
+                System.out.println("Migrate fail: " + fileName + " " + chunkID);
+            } else {
+                System.out.println("Migrate " + fileName + " " + chunkID + " to " + replica);
+            }
+        }
+
         sendACKTOMeta(chunk2, true);
         return ret;
     }
@@ -789,6 +886,65 @@ public class FileServer {
     }
 
     /**
+     * Copy the replica in this server to target server
+     * @param fileName file name
+     * @param chunkID ID
+     * @param target file server
+     * @return chunk pay load
+     */
+    private int migrateChunkReplica(String fileName, int chunkID, int target) {
+
+        FileServer fileServer = allFileServerList.get(target);
+        if (fileServer == null) {
+            return FileClient.FILE_SERVER_NOT_AVAILABLE;
+        }
+
+        try {
+            Socket targetSock = new Socket(fileServer.fileServerAddress, fileServer.requestFilePort);
+            RequestEnvelop request = new RequestEnvelop("w", fileName);
+            request.addParam(Integer.toString(chunkID));
+            FileChunk chunk = getChunk(fileName, chunkID);
+            if (chunk == null) {
+                return FileClient.CHUNK_NOT_AVAILABLE;
+            }
+            char[] data = readChunk(chunk);
+            request.data = data;
+
+            // no ACK to meta
+            request.addParam("no");
+
+            ObjectOutputStream output = new ObjectOutputStream(targetSock.getOutputStream());
+            output.writeObject(request);
+            output.flush();
+
+            ObjectInputStream input = new ObjectInputStream(targetSock.getInputStream());
+            ResponseEnvelop response = (ResponseEnvelop) input.readObject();
+
+            if (response.error < 0) {
+                return -1;
+            }
+
+            if (response.params == null || response.params.size() == 0) {
+                return -1;
+            }
+
+            if (Integer.parseInt(response.params.get(0)) != data.length) {
+                System.out.println("Data length not match");
+                return -1;
+            }
+
+            return data.length;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            return -1;
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    /**
      * Run this before any procedure
      */
     private void initialize() {
@@ -796,6 +952,7 @@ public class FileServer {
         fileInfo.recoverFileInfoFromDisk();
         metaServer.resolveAddress();
         resolveAddress();
+        resolveAllFileServerAddress();
     }
 
     private void keepLive() {
