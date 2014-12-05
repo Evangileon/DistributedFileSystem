@@ -83,6 +83,10 @@ public class FileServer {
             Node thisFileServerNode = getFileServerNodeWithHostname(doc, xPath, hostName);
             // TODO XPath to find proper file server config for this
             //Node thisFileServerNode = doc.getElementsByTagName("fileServer").item(0);
+            // config for meta server
+            Node metaServerNode = doc.getElementsByTagName("metaServer").item(0);
+            parseXMLToConfigMetaServer(metaServerNode);
+
             parseXMLToConfigFileServer(thisFileServerNode);
             parseXMLToConfigFileServers(doc);
 
@@ -132,6 +136,40 @@ public class FileServer {
             fileServerAddress = InetAddress.getByName(hostname);
         } catch (UnknownHostException e) {
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * Retrieve all information about meta server
+     *
+     * @param serverNode root element node of meta server in XML config file
+     */
+    private void parseXMLToConfigMetaServer(Node serverNode) {
+        NodeList serverConfig = serverNode.getChildNodes();
+
+        for (int j = 0; j < serverConfig.getLength(); j++) {
+            Node oneConfig = serverConfig.item(j);
+            if (oneConfig.getNodeType() != Node.ELEMENT_NODE) {
+                continue;
+            }
+
+            String nodeName = oneConfig.getNodeName();
+            String text = oneConfig.getTextContent();
+            if (nodeName.equals("hostname")) {
+                metaServer.hostname = text;
+            }
+            if (nodeName.equals("receiveHeartbeatPort")) {
+                metaServer.receiveHeartbeatPort = Integer.parseInt(text);
+            }
+            if (nodeName.equals("clientPort")) {
+                metaServer.clientPort = Integer.parseInt(text);
+            }
+            if (nodeName.equals("ackPort")) {
+                metaServer.ackPort = Integer.parseInt(text);
+            }
+            if (nodeName.equals("replicaPort")) {
+                metaServer.replicaPort = Integer.parseInt(text);
+            }
         }
     }
 
