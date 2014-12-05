@@ -592,29 +592,29 @@ public class MetaServer {
             return;
         }
 
-        // for each record of file chunks on file server
-        for (Map.Entry<String, List<FileChunk>> pair : fileInfo) {
-            String fileName = pair.getKey();
-            List<FileChunk> fileChunks = pair.getValue();
-
-            List<Integer> chunksOnThisServer;
-            // must be mutually exclusive
-            synchronized (fileChunkMap) {
-                chunksOnThisServer = fileChunkMap.get(fileName);
-                if (chunksOnThisServer == null) {
-                    chunksOnThisServer = Collections.synchronizedList(new ArrayList<Integer>());
-                    fileChunkMap.put(fileName, (chunksOnThisServer));
-                }
-            }
-
-            // synchronize
-            synchronized (chunksOnThisServer) {
-                for (FileChunk fileChunk : fileChunks) {
-                    Helper.expandToIndexInteger(chunksOnThisServer, fileChunk.chunkID);
-                    chunksOnThisServer.set(fileChunk.chunkID, id);
-                }
-            }
-        }
+//        // for each record of file chunks on file server
+//        for (Map.Entry<String, List<FileChunk>> pair : fileInfo) {
+//            String fileName = pair.getKey();
+//            List<FileChunk> fileChunks = pair.getValue();
+//
+//            List<Integer> chunksOnThisServer;
+//            // must be mutually exclusive
+//            synchronized (fileChunkMap) {
+//                chunksOnThisServer = fileChunkMap.get(fileName);
+//                if (chunksOnThisServer == null) {
+//                    chunksOnThisServer = Collections.synchronizedList(new ArrayList<Integer>());
+//                    fileChunkMap.put(fileName, (chunksOnThisServer));
+//                }
+//            }
+//
+//            // synchronize
+//            synchronized (chunksOnThisServer) {
+//                for (FileChunk fileChunk : fileChunks) {
+//                    Helper.expandToIndexInteger(chunksOnThisServer, fileChunk.chunkID);
+//                    chunksOnThisServer.set(fileChunk.chunkID, id);
+//                }
+//            }
+//        }
 
         synchronized (fileServerInfoMap) {
             fileServerInfoMap.put(id, fileInfo);
