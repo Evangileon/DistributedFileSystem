@@ -1279,6 +1279,26 @@ public class MetaServer {
             }
         }
 
+
+        if (lastRemain != 0) {
+            // first append chunks is already there
+            chunkItor.next();
+            locationItor.next();
+        }
+
+        // arrange replicas
+        chunkItor = chunkList.iterator();
+        locationItor = chunkLocationList.iterator();
+        while (chunkItor.hasNext()) {
+            int chunk = chunkItor.next();
+            int loc = locationItor.next();
+
+            List<Integer> replicas = loadBalancer.getReplicas(loc);
+            if (replicas != null) {
+                addToReplicaList(fileName, chunk, replicas);
+            }
+        }
+
 //        // add to pending list
 //        chunkItor = chunkList.iterator();
 //        locationItor = chunkLocationList.iterator();
