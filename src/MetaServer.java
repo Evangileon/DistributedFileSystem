@@ -1279,7 +1279,8 @@ public class MetaServer {
             }
         }
 
-
+        chunkItor = chunkList.iterator();
+        locationItor = chunkLocationList.iterator();
         if (lastRemain != 0) {
             // first append chunks is already there
             chunkItor.next();
