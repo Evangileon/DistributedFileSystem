@@ -468,6 +468,7 @@ public class FileServer {
 
                 if (cmd.length() > 1) {
                     if (cmd.equals("migrateReplica")) {
+                        // meta tell this to copy chunk to two server
                         String fileMigrate = request.fileName;
                         int chunkMigrate = request.chunkID;
                         if (fileMigrate == null || request.params == null || request.params.size() == 0) {
@@ -482,6 +483,7 @@ public class FileServer {
                             response.setError(-1);
                         }
                     } else if (cmd.equals("replica")) {
+                        // receive replica
                         if (request.params.size() != 0) {
                             chunkID = Integer.valueOf(request.params.get(0));
                             int actualLength = Helper.charArrayLength(request.data);
@@ -1008,8 +1010,9 @@ public class FileServer {
                 return -1;
             }
 
-            if (Integer.parseInt(response.params.get(0)) != data.length) {
-                System.out.println("Data length not match");
+            int responseLength = Integer.parseInt(response.params.get(0));
+            if (responseLength != data.length) {
+                System.out.println("Data length not match: request=" + data.length + " response=" + responseLength);
                 return -1;
             }
 
