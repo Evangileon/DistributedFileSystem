@@ -295,7 +295,7 @@ public class FileServer {
 
             } catch (IOException e) {
                 //System.out.println(heartbeatSock.getInetAddress().toString());
-                e.printStackTrace();
+                System.out.println(e.getMessage());
                 try {
                     Thread.sleep(5000);
                 } catch (InterruptedException e1) {
@@ -1014,8 +1014,8 @@ public class FileServer {
             }
 
             int responseLength = Integer.parseInt(response.params.get(0));
-            if (responseLength != data.length) {
-                System.out.println("Data length not match: request=" + data.length + " response=" + responseLength);
+            if (responseLength != chunk.actualLength) {
+                System.out.println("Data length not match: request=" + chunk.actualLength + " response=" + responseLength);
                 return -1;
             }
 
