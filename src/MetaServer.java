@@ -311,17 +311,8 @@ public class MetaServer {
                             // update file chunk information in meta server
                             synchronizeWithMap(remoteID, ack.fileInfo);
 
-//                            // check and release pending chunks, these chunks are already in file servers
-//                            releasePendingChunks(remoteID, ack.fileInfo);
-
                         } else if (ack.type == ACKEnvelop.CLIENT_ACK) {
-                            // client send this ACK if and only if read/append fail
-//                            if (ack.chunkMap != null && ack.success == false) {
-//                                // client will tell meta to remove these chunks from pending
-//                                for (Map.Entry<String, ArrayList<Integer>> pair : ack.chunkMap.entrySet()) {
-//                                    removeFromPendingChunks(pair.getKey(), pair.getValue());
-//                                }
-//                            }
+
                         }
 
                         ACKEnvelop ackResponse = ACKEnvelop.metaServerAck(ack.ackNo);
@@ -361,8 +352,8 @@ public class MetaServer {
             public void run() {
                 while (true) {
                     try {
-                        Socket replicaFecthSock = receiveReplicaFetch.accept();
-                        ObjectInputStream input = new ObjectInputStream(replicaFecthSock.getInputStream());
+                        Socket replicaFetchSock = receiveReplicaFetch.accept();
+                        ObjectInputStream input = new ObjectInputStream(replicaFetchSock.getInputStream());
                         RequestEnvelop request = (RequestEnvelop) input.readObject();
 
                         ResponseEnvelop response = new ResponseEnvelop(request);
@@ -372,7 +363,7 @@ public class MetaServer {
                             response.chunksLocation = new LinkedList<>(replicas);
                         }
 
-                        ObjectOutputStream output = new ObjectOutputStream(replicaFecthSock.getOutputStream());
+                        ObjectOutputStream output = new ObjectOutputStream(replicaFetchSock.getOutputStream());
                         output.writeObject(response);
                         output.flush();
 
@@ -436,7 +427,8 @@ public class MetaServer {
 
     /**
      * Migrate all chunks in the file server to proper file servers
-     * @param id failed server
+     *
+     * @param id       failed server
      * @param fileInfo info in the failed server
      */
     private void migrateReplicas(int id, FileInfo fileInfo) {
@@ -503,8 +495,9 @@ public class MetaServer {
 
     /**
      * Get the ID of file server that the chunk store
+     *
      * @param fileName file name
-     * @param chunkID ID
+     * @param chunkID  ID
      * @return id of the file server that the chunk store
      */
     private int getPrimaryReplica(String fileName, int chunkID) {
@@ -524,20 +517,21 @@ public class MetaServer {
 
     /**
      * Request file server to copy its chunk to another server
-     * @param from file server
-     * @param to file server
+     *
+     * @param from     file server
+     * @param to       file server
      * @param fileName file name
-     * @param chunkID ID
+     * @param chunkID  ID
      * @return negative if fail
      */
     private int requestFileServerToMigrateReplica(int from, int to, String fileName, int chunkID) {
 
-        if (!allFileServerAvail.containsKey(from) || allFileServerAvail.get(from) == false) {
+        if (!allFileServerAvail.containsKey(from) || !allFileServerAvail.get(from)) {
             return FileClient.FILE_SERVER_NOT_AVAILABLE;
         }
 
         FileServer fileServer = allFileServerList.get(from);
-        if (fileServer == null ) {
+        if (fileServer == null) {
             return FileClient.FILE_SERVER_NOT_AVAILABLE;
         }
 
@@ -641,8 +635,6 @@ public class MetaServer {
                     int id = pair.getKey();
                     long lastTouch = pair.getValue();
 
-                    //System.out.println(String.format("id = %d, %s = %d, %s = %d", id, "CurrenTime", currentTime, "LastTouch", lastTouch));
-
                     long diff = currentTime - lastTouch;
                     if (diff > 5000) {
                         System.out.println("File server fail one time: " + id);
@@ -672,30 +664,6 @@ public class MetaServer {
             return;
         }
 
-//        // for each record of file chunks on file server
-//        for (Map.Entry<String, List<FileChunk>> pair : fileInfo) {
-//            String fileName = pair.getKey();
-//            List<FileChunk> fileChunks = pair.getValue();
-//
-//            List<Integer> chunksOnThisServer;
-//            // must be mutually exclusive
-//            synchronized (fileChunkMap) {
-//                chunksOnThisServer = fileChunkMap.get(fileName);
-//                if (chunksOnThisServer == null) {
-//                    chunksOnThisServer = Collections.synchronizedList(new ArrayList<Integer>());
-//                    fileChunkMap.put(fileName, (chunksOnThisServer));
-//                }
-//            }
-//
-//            // synchronize
-//            synchronized (chunksOnThisServer) {
-//                for (FileChunk fileChunk : fileChunks) {
-//                    Helper.expandToIndexInteger(chunksOnThisServer, fileChunk.chunkID);
-//                    chunksOnThisServer.set(fileChunk.chunkID, id);
-//                }
-//            }
-//        }
-
         synchronized (fileServerInfoMap) {
             fileServerInfoMap.put(id, fileInfo);
         }
@@ -703,106 +671,6 @@ public class MetaServer {
             allFileServerAvail.put(id, true);
         }
     }
-
-//    /**
-//     * Add to pending list, if the entry for a filename not exist, just create it
-//     *
-//     * @param fileName     this file has pending chunks
-//     * @param chunkID      pending chunk
-//     * @param fileServerID pending chunk intended to store
-//     */
-//    private void addToPendingList(String fileName, int chunkID, int fileServerID) {
-//        Map<Integer, Integer> pending = pendingFileChunks.get(fileName);
-//        if (pending == null) {
-//            pending = Collections.synchronizedMap(new HashMap<Integer, Integer>());
-//            synchronized (pendingFileChunks) {
-//                pendingFileChunks.put(fileName, pending);
-//            }
-//        }
-//        synchronized (pending) {
-//            pending.put(chunkID, fileServerID);
-//        }
-//    }
-
-//    /**
-//     * Remove from pending list. The removing happens if and only if three parameters exist,
-//     * and match to pending list. Otherwise do nothing.
-//     *
-//     * @param fileName     this file has pending chunks
-//     * @param chunkID      pending chunk
-//     * @param fileServerID pending chunk intended to store
-//     */
-//    private void removeFromPendingList(String fileName, int chunkID, int fileServerID) {
-//        Map<Integer, Integer> pending = pendingFileChunks.get(fileName);
-//        if (pending == null) {
-//            return;
-//        }
-//        if (!pending.containsKey(chunkID)) {
-//            return;
-//        }
-//        if (pending.get(chunkID) != fileServerID) {
-//            return;
-//        }
-//        synchronized (pending) {
-//            pending.remove(chunkID);
-//        }
-//        // remove file entry
-//        if (pending.size() == 0) {
-//            synchronized (pendingFileChunks) {
-//                pendingFileChunks.remove(fileName);
-//            }
-//        }
-//    }
-
-//    /**
-//     * This function used after append or read fail
-//     *
-//     * @param fileName  file name of the chunks belongs to
-//     * @param chunkList a list of chunk ID
-//     */
-//    private void removeFromPendingChunks(String fileName, List<Integer> chunkList) {
-//        if (fileName == null || chunkList == null) {
-//            return;
-//        }
-//
-//        Map<Integer, Integer> chunks = pendingFileChunks.get(fileName);
-//        if (chunks == null) {
-//            return;
-//        }
-//
-//        for (Integer chunkID : chunkList) {
-//            chunks.remove(chunkID);
-//        }
-//    }
-
-//    /**
-//     * Release the pending file chunks, that means all chunks that client supposed
-//     * to upload are already uploaded to file servers. Because file server send the
-//     * information about these chunks already in its disk.
-//     *
-//     * @param id       the id from which the file info sent
-//     * @param fileInfo transited from file servers
-//     */
-//    private void releasePendingChunks(int id, FileInfo fileInfo) {
-//
-//        if (fileInfo == null) {
-//            return;
-//        }
-//
-//        for (Map.Entry<String, List<FileChunk>> fileChunksInFileServer : fileInfo) {
-//            String fileName = fileChunksInFileServer.getKey();
-//            if (!pendingFileChunks.containsKey(fileName)) {
-//                continue;
-//            }
-//
-//            List<FileChunk> chunks = fileChunksInFileServer.getValue();
-//            for (FileChunk chunk : chunks) {
-//                int chunkID = chunk.chunkID;
-//                // check whether ID equal to keep consistent
-//                removeFromPendingList(fileName, chunkID, id);
-//            }
-//        }
-//    }
 
     /**
      * Get replicas arrangement
@@ -890,10 +758,7 @@ public class MetaServer {
         if (chunkList == null) {
             return false;
         }
-        if (chunkList.size() <= chunkID) {
-            return false;
-        }
-        return chunkList.get(chunkID) == id;
+        return chunkList.size() > chunkID && chunkList.get(chunkID) == id;
     }
 
     /**
@@ -937,9 +802,6 @@ public class MetaServer {
 
                     // update file chunk information in meta server
                     synchronizeWithMap(this.id, fileInfo);
-
-                    // check and release pending chunks, these chunks are already in file servers
-                    //releasePendingChunks(this.id, fileInfo);
 
                     // file server touched meta server
                     fileServerHeartbeatTouch(this.id);
@@ -1126,16 +988,6 @@ public class MetaServer {
             chunksNeedToScan.add(i);
         }
 
-//        // check pending list
-//        Map<Integer, Integer> pending = pendingFileChunks.get(fileName);
-//        if (pending != null) {
-//            for (Integer chunkID : chunksNeedToScan) {
-//                if (pending.containsKey(chunkID)) {
-//                    return FileClient.CHUNK_IN_PENDING;
-//                }
-//            }
-//        }
-
         List<Integer> list = fileChunkMap.get(fileName);
         if (list == null) {
             return FileClient.FILE_NOT_EXIST;
@@ -1167,9 +1019,6 @@ public class MetaServer {
      * @return 0 if is full, otherwise the remaining space, -1 if not available, -2 if in pending
      */
     private int checkLastChunkOfFile(String fileName) {
-//        if (pendingFileChunks.containsKey(fileName)) {
-//            return FileClient.CHUNK_IN_PENDING;
-//        }
 
         List<Integer> list = fileChunkMap.get(fileName);
         if (list == null || list.size() == 0) {
@@ -1196,9 +1045,6 @@ public class MetaServer {
      * @return chunk ID of last chunk, or error code
      */
     private int getLastChunkOfFile(String fileName) {
-//        if (pendingFileChunks.containsKey(fileName)) {
-//            return FileClient.CHUNK_IN_PENDING;
-//        }
 
         List<Integer> list = fileChunkMap.get(fileName);
         if (list == null) {
@@ -1220,9 +1066,6 @@ public class MetaServer {
      * @return file server ID of last chunk, or error code
      */
     private int getLocationOfLastChunkOfFile(String fileName) {
-//        if (pendingFileChunks.containsKey(fileName)) {
-//            return FileClient.CHUNK_IN_PENDING;
-//        }
 
         List<Integer> list = fileChunkMap.get(fileName);
         if (list == null) {
@@ -1301,15 +1144,6 @@ public class MetaServer {
             fileChunkMap.put(fileName, list);
         }
 
-//        // add to pending list
-//        chunkItor = chunkList.iterator();
-//        locationItor = chunkLocationList.iterator();
-//        while (chunkItor.hasNext()) {
-//            int chunk = chunkItor.next();
-//            int loc = locationItor.next();
-//            addToPendingList(fileName, chunk, loc);
-//        }
-//
         return FileClient.SUCCESS;
     }
 
@@ -1411,16 +1245,6 @@ public class MetaServer {
             }
         }
 
-//        // add to pending list
-//        chunkItor = chunkList.iterator();
-//        locationItor = chunkLocationList.iterator();
-//        while (chunkItor.hasNext()) {
-//            int chunk = chunkItor.next();
-//            int loc = locationItor.next();
-//            // TODO whether or not add to pending? Because meta add to pending, if client append fail, meta can not detect it, it will always in pending
-//            addToPendingList(fileName, chunk, loc);
-//        }
-
         return FileChunk.FIXED_SIZE - lastRemain;
     }
 
@@ -1436,11 +1260,6 @@ public class MetaServer {
         if (chunkLocations == null) {
             return false;
         }
-
-//        // check pending list
-//        if (pendingFileChunks.containsKey(fileName)) {
-//            return false;
-//        }
 
         // check all availability
         int num = 0;

@@ -7,9 +7,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.*;
-import java.net.InetAddress;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.util.*;
 
 
@@ -17,7 +15,6 @@ public class FileClient {
 
     public static final int SUCCESS = 0;
     public static final int CHUNK_NOT_AVAILABLE = -1;
-    public static final int CHUNK_IN_PENDING = -2;
     public static final int FILE_SERVER_NOT_AVAILABLE = -3;
     public static final int META_SERVER_NOT_AVAILABLE = -4;
     public static final int CAUSAL_ORDERING_VIOLATED = -5;
@@ -28,7 +25,6 @@ public class FileClient {
     HashMap<Integer, FileServer> allFileServerList;
 
     //String metaHostName; // hostname of meta server
-    //InetAddress metaServerAddress;
     //int metaClientPort; // port of meta server to receive client request
 
     MetaServer metaServer;
@@ -360,7 +356,7 @@ public class FileClient {
             int ret = writeChunkData(dataToWrite, location, fileName, chunkID);
             if (ret < 0) {
                 System.out.println("Write error: " + ret);
-                sendACKTOMeta(fileName, new ArrayList<Integer>(chunks), false);
+                sendACKTOMeta(fileName, new ArrayList<>(chunks), false);
                 return -1;
             }
         }

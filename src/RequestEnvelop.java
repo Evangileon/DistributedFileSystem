@@ -9,7 +9,7 @@ public class RequestEnvelop implements Serializable {
     ArrayList<String> params;
     char[] data;
 
-    final UUID uuid = UUID.randomUUID();
+    UUID uuid = UUID.randomUUID();
 
     public RequestEnvelop(String cmd, String fileName) {
         this.cmd = cmd;

@@ -16,7 +16,7 @@ public class ACKEnvelop implements Serializable {
     int type;
     int id;
     long ackNo;
-    private static long ackSerie = 0;
+    private static long ackSeries = 0;
     final UUID uuid = UUID.randomUUID();
 
     FileInfo fileInfo = null;
@@ -28,7 +28,7 @@ public class ACKEnvelop implements Serializable {
     }
 
     private static synchronized long newAck() {
-        return (++ackSerie);
+        return (++ackSeries);
     }
 
     public static ACKEnvelop clientAck(String fileName, ArrayList<Integer> list, boolean success) {

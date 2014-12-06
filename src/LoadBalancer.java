@@ -64,9 +64,7 @@ public class LoadBalancer {
     public int getExclusiveReplica(List<Integer> previousReplicas) {
         List<Integer> loadList = sort();
 
-        Iterator<Integer> itor = loadList.iterator();
-        while (itor.hasNext()) {
-            Integer candidate = itor.next();
+        for (Integer candidate : loadList) {
             if (!previousReplicas.contains(candidate)) {
                 // good replica
                 return candidate;

@@ -267,7 +267,7 @@ public class FileServer {
 
                             } catch (IOException e) {
                                 System.out.println(heartbeatSock.getRemoteSocketAddress().toString());
-                                e.printStackTrace();
+                                System.out.println(e.getMessage());
                                 break;
                             }
                             try {
@@ -294,7 +294,7 @@ public class FileServer {
                 System.out.println("heartbeat reconnect");
 
             } catch (IOException e) {
-                //System.out.println(heartbeatSock.getInetAddress().toString());
+
                 System.out.println(e.getMessage());
                 try {
                     Thread.sleep(5000);
@@ -378,7 +378,7 @@ public class FileServer {
 
                         String fileName = request.fileName;
                         int chunkID = request.chunkID;
-                        int target = 0;
+                        int target;
 
                         if (request.params != null && request.params.size() > 0) {
                             target = Integer.parseInt(request.params.get(0));
@@ -407,32 +407,6 @@ public class FileServer {
 
         commandHandleThread.setDaemon(true);
         commandHandleThread.start();
-    }
-
-    /**
-     * Add the replica information sent from meta to local
-     *
-     * @param fileName file name
-     * @param chunkID  ID
-     * @param replicas two replica locations
-     */
-    private void addToReplicaList(String fileName, int chunkID, List<Integer> replicas) {
-        if (fileName == null || replicas == null) {
-            return;
-        }
-
-        Map<Integer, List<Integer>> chunkReplicas;
-        synchronized (replicaMap) {
-            chunkReplicas = replicaMap.get(fileName);
-            if (chunkReplicas == null) {
-                chunkReplicas = new ConcurrentHashMap<>();
-                replicaMap.put(fileName, chunkReplicas);
-            }
-        }
-
-        synchronized (chunkReplicas) {
-            chunkReplicas.put(chunkID, replicas);
-        }
     }
 
     /**
@@ -487,8 +461,6 @@ public class FileServer {
                         if (request.params.size() != 0) {
                             chunkID = Integer.valueOf(request.params.get(0));
                             int actualLength = Helper.charArrayLength(request.data);
-                            FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
-                            //System.out.println(Arrays.toString(request.data));
 
                             int size1 = write(fileName, chunkID, actualLength, request.data, false);
 
@@ -523,8 +495,6 @@ public class FileServer {
                             }
                             chunkID = Integer.valueOf(request.params.get(0));
                             int actualLength = Helper.charArrayLength(request.data);
-                            FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
-                            //System.out.println(Arrays.toString(request.data));
 
                             boolean needACK = request.params.size() == 1;
 
@@ -972,9 +942,10 @@ public class FileServer {
 
     /**
      * Copy the replica in this server to target server
+     *
      * @param fileName file name
-     * @param chunkID ID
-     * @param target file server
+     * @param chunkID  ID
+     * @param target   file server
      * @return chunk pay load
      */
     private int migrateChunkReplica(String fileName, int chunkID, int target) {

@@ -24,12 +24,18 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, List<F
 
         File dir = new File(this.fileDir);
         if (!dir.exists()) {
-            dir.mkdir();
+            if (dir.mkdir()) {
+                System.out.println("mkdir " + fileDir);
+            }
         }
 
         if (!dir.isDirectory()) {
-            dir.delete();
-            dir.mkdir();
+            if (dir.delete()) {
+                System.out.println("rm non dir " + fileDir);
+            }
+            if (dir.mkdir()) {
+                System.out.println("mkdir " + fileDir);
+            }
         }
     }
 
@@ -90,8 +96,9 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, List<F
 
     /**
      * Get the total number of chunks maintained on this server
-     * @deprecated
+     *
      * @return number of chunks
+     * @deprecated
      */
     @Deprecated
     public int totalChunks() {
