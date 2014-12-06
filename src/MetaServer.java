@@ -434,6 +434,11 @@ public class MetaServer {
         migrateReplicas(id, fileInfo);
     }
 
+    /**
+     * Migrate all chunks in the file server to proper file servers
+     * @param id failed server
+     * @param fileInfo info in the failed server
+     */
     private void migrateReplicas(int id, FileInfo fileInfo) {
         for (Map.Entry<String, List<FileChunk>> pair : fileInfo.fileChunks.entrySet()) {
             String fileName = pair.getKey();
@@ -465,6 +470,12 @@ public class MetaServer {
                     synchronized (fileChunkMapReplica3) {
                         fileChunkMapReplica3.get(fileName).set(chunk.chunkID, newReplica);
                     }
+
+                    int from = fileChunkMapReplica2.get(fileName).get(chunk.chunkID);
+                    int ret = requestFileServerToMigrateReplica(from, newReplica, fileName, chunk.chunkID);
+                    if (ret < 0) {
+                        System.out.println("Migrate fail: from " + from + " to " + newReplica);
+                    }
                 } else {
                     if (fileChunkMapReplica2.get(fileName).get(chunk.chunkID) == id) {
                         // replica 2 fail
@@ -473,8 +484,16 @@ public class MetaServer {
                             fileChunkMapReplica2.get(fileName).set(chunk.chunkID, newReplica);
                         }
                     } else {
+                        // replica 3 fail
                         synchronized (fileChunkMapReplica3) {
                             fileChunkMapReplica3.get(fileName).set(chunk.chunkID, newReplica);
+                        }
+                    }
+                    int primary = getPrimaryReplica(fileName, chunk.chunkID);
+                    if (primary > 0) {
+                        int ret = requestFileServerToMigrateReplica(primary, newReplica, fileName, chunk.chunkID);
+                        if (ret < 0) {
+                            System.out.println("Migrate fail: from " + primary + " to " + newReplica);
                         }
                     }
                 }
@@ -482,6 +501,12 @@ public class MetaServer {
         }
     }
 
+    /**
+     * Get the ID of file server that the chunk store
+     * @param fileName file name
+     * @param chunkID ID
+     * @return id of the file server that the chunk store
+     */
     private int getPrimaryReplica(String fileName, int chunkID) {
         List<Integer> list;
         synchronized (fileChunkMap) {
@@ -495,6 +520,51 @@ public class MetaServer {
             return -1;
         }
         return list.get(chunkID);
+    }
+
+    /**
+     * Request file server to copy its chunk to another server
+     * @param from file server
+     * @param to file server
+     * @param fileName file name
+     * @param chunkID ID
+     * @return negative if fail
+     */
+    private int requestFileServerToMigrateReplica(int from, int to, String fileName, int chunkID) {
+
+        if (!allFileServerAvail.containsKey(from) || allFileServerAvail.get(from) == false) {
+            return FileClient.FILE_SERVER_NOT_AVAILABLE;
+        }
+
+        FileServer fileServer = allFileServerList.get(from);
+        if (fileServer == null ) {
+            return FileClient.FILE_SERVER_NOT_AVAILABLE;
+        }
+
+        try {
+            Socket fileSock = new Socket(fileServer.fileServerAddress, fileServer.commandPort);
+            RequestEnvelop request = new RequestEnvelop("migrateReplica", fileName);
+            request.chunkID = chunkID;
+            request.addParam(Integer.toString(to));
+
+            ObjectOutputStream output = new ObjectOutputStream(fileSock.getOutputStream());
+            output.writeObject(request);
+            output.flush();
+
+            ObjectInputStream input = new ObjectInputStream(fileSock.getInputStream());
+            ResponseEnvelop response = (ResponseEnvelop) input.readObject();
+
+            return response.error;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            return -1;
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+
+        return 0;
     }
 
     /**
@@ -1037,7 +1107,7 @@ public class MetaServer {
      * @param chunkLocationList to store location of chunks correspondent to chunkList
      * @return error code
      */
-    public int read(String fileName, int offset, int length, List<Integer> chunkList, List<Integer> chunkLocationList) {
+    private int read(String fileName, int offset, int length, List<Integer> chunkList, List<Integer> chunkLocationList) {
         chunkList.clear();
         chunkLocationList.clear();
 
@@ -1177,7 +1247,7 @@ public class MetaServer {
      * @param chunkLocationList list of chunk location at file server
      * @return 0 if succeed, otherwise error code
      */
-    public int write(String fileName, int length, List<Integer> chunkList, List<Integer> chunkLocationList) {
+    private int write(String fileName, int length, List<Integer> chunkList, List<Integer> chunkLocationList) {
 
         chunkList.clear();
         chunkLocationList.clear();
@@ -1255,7 +1325,7 @@ public class MetaServer {
      * @param chunkLocationList list of location of chunks
      * @return offset that begin to append if success, or error code
      */
-    public int append(String fileName, int length, List<Integer> chunkList, List<Integer> chunkLocationList) {
+    private int append(String fileName, int length, List<Integer> chunkList, List<Integer> chunkLocationList) {
         chunkList.clear();
         chunkLocationList.clear();
 
@@ -1360,7 +1430,7 @@ public class MetaServer {
      * @param fileName to delete
      * @return deleted successfully
      */
-    public boolean delete(String fileName) {
+    private boolean delete(String fileName) {
         List<Integer> chunkLocations = fileChunkMap.get(fileName);
 
         if (chunkLocations == null) {

@@ -370,10 +370,36 @@ public class FileServer {
             public void run() {
                 while (true) {
                     try {
-                        Socket sock = commandSock.accept();
+                        Socket metaSock = commandSock.accept();
+                        ObjectInputStream input = new ObjectInputStream(metaSock.getInputStream());
+                        RequestEnvelop request = (RequestEnvelop) input.readObject();
+
+                        ResponseEnvelop response = new ResponseEnvelop(request);
+
+                        String fileName = request.fileName;
+                        int chunkID = request.chunkID;
+                        int target = 0;
+
+                        if (request.params != null && request.params.size() > 0) {
+                            target = Integer.parseInt(request.params.get(0));
+                            int ret = migrateChunkReplica(fileName, chunkID, target);
+                            if (ret < 0) {
+                                response.setError(FileClient.CHUNK_NOT_AVAILABLE);
+                            }
+                        } else {
+                            response.setError(FileClient.INVALID_COMMAND);
+                        }
+
+                        ObjectOutputStream output = new ObjectOutputStream(metaSock.getOutputStream());
+                        output.writeObject(response);
+                        output.flush();
+                        output.close();
 
                     } catch (IOException e) {
                         e.printStackTrace();
+                    } catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                        System.exit(-1);
                     }
                 }
             }
@@ -922,6 +948,7 @@ public class FileServer {
 
             ObjectInputStream input = new ObjectInputStream(sock.getInputStream());
             ResponseEnvelop response = (ResponseEnvelop) input.readObject();
+            input.close();
 
             if (response.chunksLocation == null) {
                 return null;
@@ -1025,6 +1052,8 @@ public class FileServer {
         initialize();
 
         prepareToSendHeartbeat();
+
+        prepareToReceiveCommandFromMeta();
 
         prepareToReceiveRequest();
 
