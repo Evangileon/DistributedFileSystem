@@ -535,7 +535,7 @@ public class FileServer {
                         case 'a':
                             chunkID = Integer.valueOf(request.params.get(0));
 
-                            ret = append(fileName, chunkID, request.data);
+                            ret = append(fileName, chunkID, request.data, true);
 
                             if (ret < 0) {
                                 response.setError(ret);
@@ -700,9 +700,9 @@ public class FileServer {
             for (Integer replica : replicas) {
                 int suc = migrateChunkReplica(fileName, chunkID, replica);
                 if (suc < 0) {
-                    System.out.println("Migrate fail: " + fileName + " " + chunkID);
+                    System.out.println("Write migrate fail: " + fileName + " " + chunkID);
                 } else {
-                    System.out.println("Migrate " + fileName + " " + chunkID + " to " + replica);
+                    System.out.println("Write migrate " + fileName + " " + chunkID + " to " + replica);
                 }
             }
             sendACKTOMeta(null, true);
@@ -710,7 +710,7 @@ public class FileServer {
         return size;
     }
 
-    private int append(String fileName, int chunkID, char[] data) {
+    private int append(String fileName, int chunkID, char[] data, boolean needACK) {
         int ret;
         FileChunk chunk2 = getChunk(fileName, chunkID);
         FileChunk oldChunk = getChunk(fileName, chunkID);
@@ -736,19 +736,22 @@ public class FileServer {
         updateMetaData(chunk2);
         // update meta server
 
-        List<Integer> replicas = getReplicas(fileName, chunkID);
-        System.out.println("Replicas");
-        System.out.println(replicas.toArray().toString());
-        for (Integer replica : replicas) {
-            int suc = migrateChunkReplica(fileName, chunkID, replica);
-            if (suc < 0) {
-                System.out.println("Migrate fail: " + fileName + " " + chunkID);
-            } else {
-                System.out.println("Migrate " + fileName + " " + chunkID + " to " + replica);
+        if (needACK) {
+            List<Integer> replicas = getReplicas(fileName, chunkID);
+            System.out.println("Replicas");
+            System.out.println(Arrays.toString(replicas.toArray()));
+            for (Integer replica : replicas) {
+                int suc = migrateChunkReplica(fileName, chunkID, replica);
+                if (suc < 0) {
+                    System.out.println("Append migrate fail: " + fileName + " " + chunkID);
+                } else {
+                    System.out.println("Append migrate " + fileName + " " + chunkID + " to " + replica);
+                }
             }
+
+            sendACKTOMeta(null, true);
         }
 
-        sendACKTOMeta(null, true);
         return ret;
     }
 
