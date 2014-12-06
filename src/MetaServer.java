@@ -1224,6 +1224,7 @@ public class MetaServer {
             }
         }
 
+        // arrange replicas
         chunkItor = chunkList.iterator();
         locationItor = chunkLocationList.iterator();
         if (lastRemain != 0) {
@@ -1232,9 +1233,6 @@ public class MetaServer {
             locationItor.next();
         }
 
-        // arrange replicas
-        chunkItor = chunkList.iterator();
-        locationItor = chunkLocationList.iterator();
         while (chunkItor.hasNext()) {
             int chunk = chunkItor.next();
             int loc = locationItor.next();
