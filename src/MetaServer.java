@@ -7,18 +7,10 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.Source;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamSource;
-import javax.xml.validation.Schema;
-import javax.xml.validation.SchemaFactory;
-import javax.xml.validation.Validator;
 import java.io.*;
-import java.lang.reflect.Field;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -431,13 +423,15 @@ public class MetaServer {
 
         FileInfo fileInfo = fileServerInfoMap.get(id);
 
-        if (fileInfo != null) {
-            synchronized (fileServerInfoMap) {
-                fileServerInfoMap.remove(id);
-            }
-//            // also remove from pending list
-//            releasePendingChunks(id, fileInfo);
+        if (fileInfo == null) {
+            return;
         }
+
+        synchronized (fileServerInfoMap) {
+            fileServerInfoMap.remove(id);
+        }
+
+        migrateReplicas(id, fileInfo);
     }
 
     private void migrateReplicas(int id, FileInfo fileInfo) {
@@ -446,15 +440,61 @@ public class MetaServer {
             List<FileChunk> chunkList = pair.getValue();
 
             for (FileChunk chunk : chunkList) {
+                List<Integer> replicas = getReplicas(fileName, chunk.chunkID);
+                int primaryReplica = getPrimaryReplica(fileName, chunk.chunkID);
+                if (primaryReplica < 0 || replicas == null) {
+                    continue;
+                }
+
+                replicas.add(0, primaryReplica);
+                int newReplica = loadBalancer.getExclusiveReplica(replicas);
+
                 if (isPrimaryReplica(id, fileName, chunk.chunkID)) {
                     // primary replica
                     // primary need to switch over to a another replica
 
+                    // get replica 2 become primary
+                    synchronized (fileChunkMap) {
+                        fileChunkMap.get(fileName).set(chunk.chunkID, replicas.get(1));
+                    }
+                    // move 3 to 2
+                    synchronized (fileChunkMapReplica2) {
+                        fileChunkMapReplica2.get(fileName).set(chunk.chunkID, replicas.get(2));
+                    }
+                    // add new replica to 3
+                    synchronized (fileChunkMapReplica3) {
+                        fileChunkMapReplica3.get(fileName).set(chunk.chunkID, newReplica);
+                    }
                 } else {
-
+                    if (fileChunkMapReplica2.get(fileName).get(chunk.chunkID) == id) {
+                        // replica 2 fail
+                        // move 3 to 2
+                        synchronized (fileChunkMapReplica2) {
+                            fileChunkMapReplica2.get(fileName).set(chunk.chunkID, newReplica);
+                        }
+                    } else {
+                        synchronized (fileChunkMapReplica3) {
+                            fileChunkMapReplica3.get(fileName).set(chunk.chunkID, newReplica);
+                        }
+                    }
                 }
             }
         }
+    }
+
+    private int getPrimaryReplica(String fileName, int chunkID) {
+        List<Integer> list;
+        synchronized (fileChunkMap) {
+            list = fileChunkMap.get(fileName);
+        }
+        if (list == null) {
+            return -1;
+        }
+
+        if (list.size() <= chunkID) {
+            return -1;
+        }
+        return list.get(chunkID);
     }
 
     /**
@@ -769,9 +809,10 @@ public class MetaServer {
 
     /**
      * If the chunk information sent from file server primary
-     * @param id ID that send the chunk info
+     *
+     * @param id       ID that send the chunk info
      * @param fileName file name
-     * @param chunkID chunk ID
+     * @param chunkID  chunk ID
      * @return whether primary
      */
     private boolean isPrimaryReplica(int id, String fileName, int chunkID) {
@@ -1381,6 +1422,7 @@ public class MetaServer {
 
     /**
      * Get the load list of each alive file servers
+     *
      * @return map
      */
     public Map<Integer, Integer> getChunkNumberMap() {
