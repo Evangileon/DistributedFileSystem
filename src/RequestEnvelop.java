@@ -9,7 +9,7 @@ public class RequestEnvelop implements Serializable {
     ArrayList<String> params;
     char[] data;
 
-    UUID uuid = UUID.randomUUID();
+    final UUID uuid;
 
     public RequestEnvelop(String cmd, String fileName) {
         this.cmd = cmd;
@@ -17,6 +17,19 @@ public class RequestEnvelop implements Serializable {
         this.params = new ArrayList<>();
         this.data = null;
         this.chunkID = 0;
+        this.uuid = UUID.randomUUID();
+    }
+
+    public RequestEnvelop(RequestEnvelop request) {
+        this(request.cmd, request.fileName, request.chunkID, request.params, request.uuid);
+    }
+
+    private RequestEnvelop(String cmd, String fileName, int chunkID, ArrayList<String> params, UUID uuid) {
+        this.cmd = cmd;
+        this.fileName = fileName;
+        this.chunkID = chunkID;
+        this.params = params;
+        this.uuid = uuid;
     }
 
     public void addParam(String param) {

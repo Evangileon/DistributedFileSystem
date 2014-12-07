@@ -30,11 +30,7 @@ public class ResponseEnvelop implements Serializable {
      * @param request to response
      */
     public ResponseEnvelop(RequestEnvelop request) {
-        this.requestCopy.cmd = request.cmd;
-        this.requestCopy.fileName = request.fileName;
-        this.requestCopy.chunkID = request.chunkID;
-        this.requestCopy.uuid = request.uuid;
-        this.requestCopy.params = new ArrayList<>(request.params);
+        this.requestCopy = new RequestEnvelop(request);
 
         this.error = 0;
         this.params = null;
