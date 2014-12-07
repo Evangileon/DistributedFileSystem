@@ -668,8 +668,8 @@ public class FileServer {
             size = writeChunk(chunk1, data);
         }
 
-        addToMetaData(chunk1);
         // update meta server
+        addToMetaData(chunk1);
 
         if (needACK) {
             // replicas
@@ -776,7 +776,7 @@ public class FileServer {
     }
 
     /**
-     * Add chunk information to meta data
+     * Add chunk information to meta data, if chunk already there, just update the actual length
      *
      * @param chunk control block
      */
@@ -795,6 +795,13 @@ public class FileServer {
         }
 
         synchronized (chunkMap) {
+            for (FileChunk ck : chunkMap) {
+                if (ck.chunkID == chunk.chunkID) {
+                    ck.actualLength = chunk.actualLength;
+                    return;
+                }
+            }
+            // not in list
             chunkMap.add(chunk);
             Collections.sort(chunkMap);
         }
@@ -911,12 +918,6 @@ public class FileServer {
      */
     private List<Integer> getReplicas(String fileName, int chunkID) {
 
-//        Map<Integer, List<Integer>> replicaLocations = replicaMap.get(fileName);
-//        if (replicaLocations == null) {
-//            return null;
-//        }
-//
-//        List<Integer> replicas = replicaLocations.get(chunkID);
 
         return fetchReplicasFromMeta(fileName, chunkID);
     }
