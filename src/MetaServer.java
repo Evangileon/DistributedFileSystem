@@ -426,7 +426,7 @@ public class MetaServer {
     }
 
     /**
-     * Migrate all chunks in the file server to proper file servers
+     * Migrate all chunks in the file server to another proper file servers
      *
      * @param id       failed server
      * @param fileInfo info in the failed server

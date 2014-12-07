@@ -641,6 +641,15 @@ public class FileServer {
         }
     }
 
+    /**
+     * Write function, including copy replicas, and send ACK to meta
+     * @param fileName file name
+     * @param chunkID ID
+     * @param actualLength length to write
+     * @param data payload
+     * @param needACK need to execute copy replica and send ACK ?
+     * @return negative if fail
+     */
     private int write(String fileName, int chunkID, int actualLength, char[] data, boolean needACK) {
         FileChunk chunk1 = new FileChunk(fileName, chunkID, actualLength);
         //System.out.println(Arrays.toString(request.data));
@@ -671,6 +680,7 @@ public class FileServer {
                 int suc = migrateChunkReplica(fileName, chunkID, replica);
                 if (suc < 0) {
                     System.out.println("Write migrate fail: " + fileName + " " + chunkID);
+                    return FileClient.FILE_SERVER_NOT_AVAILABLE;
                 } else {
                     System.out.println("Write migrate " + fileName + " " + chunkID + " to " + replica);
                 }
@@ -680,6 +690,14 @@ public class FileServer {
         return size;
     }
 
+    /**
+     * Append function, including copy replicas, and send ACK to meta
+     * @param fileName file name
+     * @param chunkID ID
+     * @param data payload
+     * @param needACK need to execute copy replica and send ACK ?
+     * @return negative if fail
+     */
     private int append(String fileName, int chunkID, char[] data, boolean needACK) {
         int ret;
         FileChunk chunk2 = getChunk(fileName, chunkID);
