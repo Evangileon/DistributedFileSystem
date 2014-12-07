@@ -807,7 +807,7 @@ public class MetaServer {
                     fileServerHeartbeatTouch(this.id);
 
                 } catch (IOException | ClassNotFoundException e) {
-                    e.printStackTrace();
+                    System.out.println(e.getMessage());
                     break;
                 }
             }
