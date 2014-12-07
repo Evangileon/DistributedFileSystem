@@ -839,6 +839,7 @@ public class MetaServer {
             }
             System.out.println();
         }
+        System.out.println();
     }
 
     private void printReplicaChunkMap() {
