@@ -463,7 +463,7 @@ public class MetaServer {
                         fileChunkMapReplica3.get(fileName).set(chunk.chunkID, newReplica);
                     }
 
-                    int from = fileChunkMapReplica2.get(fileName).get(chunk.chunkID);
+                    int from = fileChunkMap.get(fileName).get(chunk.chunkID);
                     int ret = requestFileServerToMigrateReplica(from, newReplica, fileName, chunk.chunkID);
                     if (ret < 0) {
                         System.out.println("Migrate fail: from " + from + " to " + newReplica);
@@ -472,15 +472,20 @@ public class MetaServer {
                     if (fileChunkMapReplica2.get(fileName).get(chunk.chunkID) == id) {
                         // replica 2 fail
                         // move 3 to 2
+                        int replica3 = fileChunkMapReplica3.get(fileName).get(chunk.chunkID);
                         synchronized (fileChunkMapReplica2) {
-                            fileChunkMapReplica2.get(fileName).set(chunk.chunkID, newReplica);
+                            fileChunkMapReplica2.get(fileName).set(chunk.chunkID, replica3);
                         }
                     } else {
                         // replica 3 fail
-                        synchronized (fileChunkMapReplica3) {
-                            fileChunkMapReplica3.get(fileName).set(chunk.chunkID, newReplica);
-                        }
+
                     }
+
+                    // make replica 3 be new replica
+                    synchronized (fileChunkMapReplica3) {
+                        fileChunkMapReplica3.get(fileName).set(chunk.chunkID, newReplica);
+                    }
+
                     int primary = getPrimaryReplica(fileName, chunk.chunkID);
                     if (primary > 0) {
                         int ret = requestFileServerToMigrateReplica(primary, newReplica, fileName, chunk.chunkID);
@@ -547,6 +552,8 @@ public class MetaServer {
 
             ObjectInputStream input = new ObjectInputStream(fileSock.getInputStream());
             ResponseEnvelop response = (ResponseEnvelop) input.readObject();
+
+            input.close();
 
             return response.error;
 
@@ -626,7 +633,7 @@ public class MetaServer {
             }
 
             printFileChunkMap();
-            //printAvailabilityMap();
+            printReplicaChunkMap();
 
             long currentTime = System.currentTimeMillis();
 
@@ -825,6 +832,28 @@ public class MetaServer {
     private void printFileChunkMap() {
         System.out.println("File Chunk Map:");
         for (Map.Entry<String, List<Integer>> pair : fileChunkMap.entrySet()) {
+            System.out.printf("%s: ", pair.getKey());
+            List<Integer> list = pair.getValue();
+            for (Integer id : list) {
+                System.out.print(id + ", ");
+            }
+            System.out.println();
+        }
+    }
+
+    private void printReplicaChunkMap() {
+        System.out.println("File Chunk Map Replica 2:");
+        for (Map.Entry<String, List<Integer>> pair : fileChunkMapReplica2.entrySet()) {
+            System.out.printf("%s: ", pair.getKey());
+            List<Integer> list = pair.getValue();
+            for (Integer id : list) {
+                System.out.print(id + ", ");
+            }
+            System.out.println();
+        }
+        System.out.println();
+        System.out.println("File Chunk Map Replica 3:");
+        for (Map.Entry<String, List<Integer>> pair : fileChunkMapReplica3.entrySet()) {
             System.out.printf("%s: ", pair.getKey());
             List<Integer> list = pair.getValue();
             for (Integer id : list) {
