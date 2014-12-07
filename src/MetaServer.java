@@ -1261,15 +1261,26 @@ public class MetaServer {
 
         // check all availability
         int num = 0;
+        boolean allAvail = true;
         for (Integer location : chunkLocations) {
             if (!checkAvailability(location, fileName, num++)) {
-                return false;
+                allAvail = false;
             }
+        }
+
+        if (!allAvail) {
+            System.out.println("Not completely delete " + fileName + ", because some servers down");
         }
 
         int affected = 0;
         // broadcast delete request to file servers
         for (Map.Entry<Integer, FileServer> pair : allFileServerList.entrySet()) {
+
+            int fileServerID = pair.getKey();
+            if (!allFileServerAvail.containsKey(fileServerID) || !allFileServerAvail.get(fileServerID)) {
+                continue;
+            }
+
             FileServer fileServer = pair.getValue();
             RequestEnvelop request = new RequestEnvelop("d", fileName);
 
