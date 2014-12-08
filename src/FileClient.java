@@ -208,6 +208,9 @@ public class FileClient {
             fileSock.close();
 
             if (response.error < 0) {
+                if (response.error == FileClient.FILE_LENGTH_EXCEED) {
+                    System.out.println("Read offset or length exceeded");
+                }
                 return null;
             }
             return response.data;
@@ -247,6 +250,10 @@ public class FileClient {
         while (chunkItor.hasNext()) {
             int chunkID = chunkItor.next();
             int location = locationItor.next();
+
+            if (!offsetItor.hasNext()) {
+                break;
+            }
             int offset = offsetItor.next();
             int length = lengthItor.next();
 
