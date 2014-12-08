@@ -1019,7 +1019,7 @@ public class MetaServer {
 
         ArrayList<FileChunk> chunks = getChunks(fileName);
         int dataScanned = 0;
-        for (int i = 0; i < chunks.size(); i++) {
+        for (int i = 0; i <= chunks.size(); i++) {
             if (dataScanned > offset && offsetBelongsToWhichChunk == -1) {
                 offsetBelongsToWhichChunk = i - 1;
             }
@@ -1027,8 +1027,10 @@ public class MetaServer {
                 lastIndexBelongsToWhichChunk = i - 1;
                 break;
             }
-            FileChunk chunk = chunks.get(i);
-            dataScanned += chunk.actualLength;
+            if (i < chunks.size()) {
+                FileChunk chunk = chunks.get(i);
+                dataScanned += chunk.actualLength;
+            }
         }
 
         if (offsetBelongsToWhichChunk == -1 || lastIndexBelongsToWhichChunk == -1) {
