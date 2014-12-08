@@ -1084,7 +1084,7 @@ public class MetaServer {
 
         // TODO only support read at most two chunks
         int dataRemain = length - firstRead;
-        while (dataRemain > 0) {
+        if (dataRemain > 0) {
             chunkOffsets.add(0);
             lengthsToRead.add(Math.min(chunks.get(lastIndexBelongsToWhichChunk).actualLength, dataRemain));
         }
