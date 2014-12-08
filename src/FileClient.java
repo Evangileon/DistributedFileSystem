@@ -98,7 +98,11 @@ public class FileClient {
                 offset = Integer.valueOf(response.requestCopy.params.get(0));
                 length = Integer.valueOf(response.requestCopy.params.get(1));
 
-                String data = readData(fileName, offset, length, response.chunksToScan, response.chunksLocation);
+
+                List<Integer> offsets = response.offsets;
+                List<Integer> lengths = response.lengths;
+
+                String data = readData(fileName, offsets, lengths, response.chunksToScan, response.chunksLocation);
 
                 if (data != null) {
                     System.out.println(data);
@@ -222,35 +226,32 @@ public class FileClient {
      * Read data from file servers according information in returned response
      *
      * @param fileName       demanded file
-     * @param offset         offset in first chunk of returned
-     * @param length         data length
+     * @param offsets         offset in first chunk of returned inside a chunk
+     * @param lengths         data length inside a chunk
      * @param chunksToScan   chunk list need to retrieve
      * @param chunksLocation file server ID
      * @return concatenated data
      */
-    private String readData(String fileName, int offset, int length, List<Integer> chunksToScan, List<Integer> chunksLocation) {
+    private String readData(String fileName, List<Integer> offsets, List<Integer> lengths, List<Integer> chunksToScan, List<Integer> chunksLocation) {
         if (chunksLocation == null || chunksToScan == null) {
             return null;
         }
 
         StringBuilder result = new StringBuilder();
 
-        offset = offset % FileChunk.FIXED_SIZE;
-
+        Iterator<Integer> offsetItor = offsets.iterator();
+        Iterator<Integer> lengthItor = lengths.iterator();
         Iterator<Integer> chunkItor = chunksToScan.iterator();
         Iterator<Integer> locationItor = chunksLocation.iterator();
 
         while (chunkItor.hasNext()) {
             int chunkID = chunkItor.next();
             int location = locationItor.next();
+            int offset = offsetItor.next();
+            int length = lengthItor.next();
 
-            int chunkRemain = FileChunk.FIXED_SIZE - offset;
             char[] more;
-            if (length >= chunkRemain) {
-                more = readChunkData(location, fileName, chunkID, offset, chunkRemain);
-            } else {
-                more = readChunkData(location, fileName, chunkID, offset, length);
-            }
+            more = readChunkData(location, fileName, chunkID, offset, length);
 
             if (more != null) {
                 result.append(more);
@@ -258,9 +259,6 @@ public class FileClient {
                 //System.out.println("Failure");
                 return null;
             }
-
-            length -= FileChunk.FIXED_SIZE;
-            offset = 0;
         }
 
         return result.toString();

@@ -924,7 +924,13 @@ public class MetaServer {
                             offset = Integer.valueOf(request.params.get(0));
                             length = Integer.valueOf(request.params.get(1));
 
-                            error = read(fileName, offset, length, chunkList, chunkLocationList);
+                            LinkedList<Integer> chunkOffsets = new LinkedList<>();
+                            LinkedList<Integer> lengthsToRead = new LinkedList<>();
+
+                            error = read(fileName, offset, length, chunkList, chunkLocationList, chunkOffsets, lengthsToRead);
+
+                            response.offsets = chunkOffsets;
+                            response.lengths = lengthsToRead;
 
                             break;
                         case 'a':
@@ -999,7 +1005,7 @@ public class MetaServer {
      * @param chunkLocationList to store location of chunks correspondent to chunkList
      * @return error code
      */
-    private int read(String fileName, int offset, int length, List<Integer> chunkList, List<Integer> chunkLocationList) {
+    private int read(String fileName, int offset, int length, List<Integer> chunkList, List<Integer> chunkLocationList, List<Integer> chunkOffsets, List<Integer> lengthsToRead) {
         chunkList.clear();
         chunkLocationList.clear();
 
@@ -1007,16 +1013,40 @@ public class MetaServer {
             return FileClient.FILE_NOT_EXIST;
         }
 
-        // number of full chunks before the offset.
-        int offsetBelongsToWhichChunk = offset / FileChunk.FIXED_SIZE;
+        int offsetBelongsToWhichChunk = -1;
         int lastIndex = offset + length - 1;
-        int lastIndexBelongsToWhichChunk = lastIndex / FileChunk.FIXED_SIZE;
+        int lastIndexBelongsToWhichChunk = -1;
+
+        ArrayList<FileChunk> chunks = getChunks(fileName);
+        int dataScanned = 0;
+        for (int i = 0; i < chunks.size(); i++) {
+            if (dataScanned > offset && offsetBelongsToWhichChunk == -1) {
+                offsetBelongsToWhichChunk = i - 1;
+            }
+            if (dataScanned > lastIndex) {
+                lastIndexBelongsToWhichChunk = i - 1;
+                break;
+            }
+            FileChunk chunk = chunks.get(i);
+            dataScanned += chunk.actualLength;
+        }
+
+        if (offsetBelongsToWhichChunk == -1 || lastIndexBelongsToWhichChunk == -1) {
+            return FileClient.FILE_LENGTH_EXCEED;
+        }
+
+        if (offsetBelongsToWhichChunk >= chunks.size() || lastIndexBelongsToWhichChunk >= chunks.size()) {
+            return FileClient.FILE_LENGTH_EXCEED;
+        }
+
 
         // need to scan this list of chunks
         LinkedList<Integer> chunksNeedToScan = new LinkedList<>();
         for (int i = offsetBelongsToWhichChunk; i <= lastIndexBelongsToWhichChunk; i++) {
             chunksNeedToScan.add(i);
         }
+
+        System.out.println("Read " + fileName + " need to scan " + Arrays.toString(chunksNeedToScan.toArray()));
 
         List<Integer> list = fileChunkMap.get(fileName);
         if (list == null) {
@@ -1037,6 +1067,24 @@ public class MetaServer {
         List<Integer> locations = fileChunkMap.get(fileName);
         for (Integer chunkID : chunkList) {
             chunkLocationList.add(locations.get(chunkID));
+        }
+
+        // get offsets and lengths inside chunks
+        int dataBefore = 0;
+        for (int i = 0; i < offsetBelongsToWhichChunk; i++) {
+            dataBefore += chunks.get(i).actualLength;
+        }
+        int firstOffset = offset - dataBefore;
+        FileChunk firstChunkToRead = chunks.get(offsetBelongsToWhichChunk);
+        chunkOffsets.add(firstOffset);
+        int firstRead = Math.min(length, firstChunkToRead.actualLength - firstOffset);
+        lengthsToRead.add(firstRead);
+
+        // TODO only support read at most two chunks
+        int dataRemain = length - firstRead;
+        while (dataRemain > 0) {
+            chunkOffsets.add(0);
+            lengthsToRead.add(Math.min(chunks.get(lastIndexBelongsToWhichChunk).actualLength, dataRemain));
         }
 
         return FileClient.SUCCESS;
@@ -1087,6 +1135,31 @@ public class MetaServer {
         }
 
         return list.size() - 1;
+    }
+
+    private ArrayList<FileChunk> getChunks(String fileName) {
+        ArrayList<FileChunk> chunks = new ArrayList<>();
+        List<Integer> chunkMap = fileChunkMap.get(fileName);
+        if (chunkMap == null) {
+            return null;
+        }
+
+        int chunkID = 0;
+        for (Integer location : chunkMap) {
+            FileInfo fileInfo = fileServerInfoMap.get(location);
+            if (fileInfo == null) {
+                return null;
+            }
+
+            FileChunk chunk = fileInfo.getChunk(fileName, chunkID++);
+            if (chunk == null) {
+                return null;
+            }
+
+            chunks.add(chunk);
+        }
+
+        return chunks;
     }
 
     /**
@@ -1190,6 +1263,10 @@ public class MetaServer {
      * @return offset that begin to append if success, or error code
      */
     private int append(String fileName, int length, List<Integer> chunkList, List<Integer> chunkLocationList) {
+        if (length > 2048) {
+            return FileClient.FILE_LENGTH_EXCEED;
+        }
+
         chunkList.clear();
         chunkLocationList.clear();
 
@@ -1204,7 +1281,13 @@ public class MetaServer {
 
         // last chunk, which is the only chunk may be non-full
         int lastChunk = getLastChunkOfFile(fileName);
-        if (lastRemain > 0) {
+//        if (lastRemain > 0) {
+//            // need update the non-full chunk
+//            chunkList.add(lastChunk);
+//            chunkLocationList.add(getLocationOfLastChunkOfFile(fileName));
+//        }
+
+        if (lastRemain >= length) {
             // need update the non-full chunk
             chunkList.add(lastChunk);
             chunkLocationList.add(getLocationOfLastChunkOfFile(fileName));
@@ -1216,8 +1299,10 @@ public class MetaServer {
             return FileChunk.FIXED_SIZE - lastRemain;
         }
 
+        // then equivalent to write a new chunk
+
         // then append entirely new chunks
-        int newLastChunk = lastChunk + 1 + (dataRemain - 1) / FileChunk.FIXED_SIZE;
+        int newLastChunk = lastChunk + 1 + (length - 1) / FileChunk.FIXED_SIZE;
 
         // only distribute to available file servers
         ArrayList<Integer> availFileServers = new ArrayList<>();
@@ -1237,15 +1322,11 @@ public class MetaServer {
             chunkLocationList.add(idArray[location]);
         }
 
+        /***********************************/
+
         // update meta data
         Iterator<Integer> chunkItor = chunkList.iterator();
         Iterator<Integer> locationItor = chunkLocationList.iterator();
-
-        if (lastRemain != 0) {
-            // append chunks is already there
-            chunkItor.next();
-            locationItor.next();
-        }
 
         List<Integer> list = fileChunkMap.get(fileName);
         synchronized (list) {
@@ -1257,11 +1338,6 @@ public class MetaServer {
         // arrange replicas
         chunkItor = chunkList.iterator();
         locationItor = chunkLocationList.iterator();
-        if (lastRemain != 0) {
-            // first append chunks is already there
-            chunkItor.next();
-            locationItor.next();
-        }
 
         while (chunkItor.hasNext()) {
             int chunk = chunkItor.next();
@@ -1273,7 +1349,7 @@ public class MetaServer {
             }
         }
 
-        return FileChunk.FIXED_SIZE - lastRemain;
+        return 0;
     }
 
     /**

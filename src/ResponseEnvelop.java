@@ -13,6 +13,8 @@ public class ResponseEnvelop implements Serializable {
 
     LinkedList<Integer> chunksToScan;
     LinkedList<Integer> chunksLocation;
+    LinkedList<Integer> offsets;
+    LinkedList<Integer> lengths;
 
     char[] data;
 

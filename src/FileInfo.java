@@ -109,6 +109,16 @@ public class FileInfo implements Serializable, Iterable<Map.Entry<String, List<F
         return num;
     }
 
+    public FileChunk getChunk(String fileName, int chunkID) {
+        List<FileChunk> chunks = fileChunks.get(fileName);
+        for (FileChunk chunk : chunks) {
+            if (chunk.chunkID == chunkID) {
+                return chunk;
+            }
+        }
+        return null;
+    }
+
     public void print() {
         for (Map.Entry<String, List<FileChunk>> entry : fileChunks.entrySet()) {
             System.out.print(entry.getKey() + " : ");
